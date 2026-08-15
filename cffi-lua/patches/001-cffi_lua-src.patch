@@ -1,0 +1,218 @@
+diff --git a/src/ffi.cc b/src/ffi.cc
+index 6d6b927..cddd139 100644
+--- a/src/ffi.cc
++++ b/src/ffi.cc
+@@ -566,6 +566,8 @@ static inline void write_int(
+         *static_cast<T *>(stor) = T(lua_tointeger(L, index));
+     } else if (lua_isboolean(L, index)) {
+         *static_cast<T *>(stor) = T(lua_toboolean(L, index));
++    } else if (lua_islightuserdata(L, index)) {
++        *static_cast<void **>(stor) = lua_touserdata(L, index);
+     } else {
+         *static_cast<T *>(stor) = T(lua_tonumber(L, index));
+     }
+@@ -588,7 +590,8 @@ static void from_lua_num(
+ ) {
+     if (tp.is_ref() && (rule == RULE_CAST)) {
+         dsz = sizeof(void *);
+-        *static_cast<void **>(stor) = util::pun<void *>(
++        *static_cast<void **>(stor) = lua_islightuserdata(L, index) ?
++            lua_touserdata(L, index) : util::pun<void *>(
+             std::size_t(lua_tointeger(L, index))
+         );
+         return;
+@@ -651,7 +654,8 @@ static void from_lua_num(
+         case ast::C_BUILTIN_PTR:
+             if (rule == RULE_CAST) {
+                 dsz = sizeof(void *);
+-                *static_cast<void **>(stor) = util::pun<void *>(
++                *static_cast<void **>(stor) = lua_islightuserdata(L, index) ?
++                    lua_touserdata(L, index) : util::pun<void *>(
+                     std::size_t(lua_tointeger(L, index))
+                 );
+                 return;
+@@ -983,6 +987,40 @@ static void *from_lua_cdata(
+     return nullptr;
+ }
+ 
++static inline void* from_lua_self_pointer(lua_State* L, int index, bool &is_valid) {
++    void* ptr = nullptr;
++
++    if (index < 0) {
++        index += lua_gettop(L) + 1;
++    }
++
++    is_valid = lua_getmetatable(L, index); // push metatable
++    if (!is_valid) {
++        return ptr;
++    }
++
++    lua_pushliteral(L, "__has_self");
++    lua_rawget(L, -2); // push metatable.__has_self
++    is_valid = lua_isboolean(L, -1) && lua_toboolean(L, -1);
++    lua_pop(L, 2); // pop metatable.__has_self, metatable
++
++    if (!is_valid) {
++        return ptr;
++    }
++
++    lua_pushliteral(L, "__self");
++    lua_gettable(L, index); // push userdata.__self
++    is_valid = lua_islightuserdata(L, -1);
++
++    if (is_valid) {
++        ptr = lua_touserdata(L, -1);
++        is_valid = static_cast<bool>(ptr);
++    }
++
++    lua_pop(L, 1); // pop userdata.__self
++    return ptr;
++}
++
+ /* this returns a pointer to a C value counterpart of the Lua value
+  * on the stack (as given by `index`) while checking types (`rule`)
+  *
+@@ -1056,6 +1094,13 @@ static void *from_lua(
+             auto tpt = tp.type();
+             if (tpt == ast::C_BUILTIN_PTR) {
+                 dsz = sizeof(void *);
++                bool is_valid;
++                void* ptr = from_lua_self_pointer(L, index, is_valid);
++                if (is_valid) {
++                    return &(
++                        *static_cast<void **>(stor) = ptr
++                    );
++                }
+                 /* special handling for FILE handles */
+                 void *ud = lua_touserdata(L, index);
+                 if (luaL_testudata(L, index, LUA_FILEHANDLE)) {
+@@ -1094,11 +1139,21 @@ static void *from_lua(
+                 return &(
+                     *static_cast<void **>(stor) = lua_touserdata(L, index)
+                 );
++            } else if (rule == RULE_CAST) {
++                from_lua_num(L, tp, stor, index, dsz, rule);
++                return stor;
+             } else {
+                 fail_convert_tp(L, "lightuserdata", tp);
+             }
+             break;
+-        case LUA_TTABLE:
++        case LUA_TTABLE: {
++            bool is_valid;
++            void* ptr = from_lua_self_pointer(L, index, is_valid);
++            if (is_valid) {
++                return &(
++                    *static_cast<void **>(stor) = ptr
++                );
++            }
+             /* we can't handle table initializers here because the memory
+              * for the new cdata doesn't exist yet by this point, and it's
+              * this function that tells the caller how much memory we'll
+@@ -1114,6 +1169,7 @@ static void *from_lua(
+              */
+             fail_convert_tp(L, "table", tp);
+             break;
++        }
+         case LUA_TFUNCTION:
+             if (!tp.callable()) {
+                 fail_convert_tp(L, "function", tp);
+diff --git a/src/ffilib.cc b/src/ffilib.cc
+index 35f3258..8b35ee6 100644
+--- a/src/ffilib.cc
++++ b/src/ffilib.cc
+@@ -211,6 +211,19 @@ struct cdata_meta {
+         }
+         void **valp = static_cast<void **>(cd.as_deref_ptr());
+         auto const *decl = &cd.decl;
++        if (
++            lua_type(L, 2) == LUA_TSTRING &&
++            std::strcmp(lua_tostring(L, 2), "__self") == 0
++        ) {
++            switch (decl->type()) {
++                case ast::C_BUILTIN_ARRAY:
++                case ast::C_BUILTIN_FUNC:
++                case ast::C_BUILTIN_PTR:
++                case ast::C_BUILTIN_RECORD:
++                    lua_pushlightuserdata(L, cd.address_of());
++                    return 1;
++            }
++        }
+         if (
+             (decl->type() == ast::C_BUILTIN_PTR) &&
+             (lua_type(L, 2) == LUA_TSTRING)
+@@ -907,6 +920,9 @@ struct cdata_meta {
+         lua_pushliteral(L, "ffi");
+         lua_setfield(L, -2, "__metatable");
+ 
++        lua_pushboolean(L, true);
++        lua_setfield(L, -2, "__has_self");
++
+         /* this will store registered permanent struct/union metatypes
+          *
+          * it's used instead of regular lua registry because there is no
+diff --git a/src/util.hh b/src/util.hh
+index a1da223..430df67 100644
+--- a/src/util.hh
++++ b/src/util.hh
+@@ -18,13 +18,7 @@
+ #include <cstdint>
+ #include <climits>
+ #include <cfloat>
+-
+-/* allocation */
+-
+-inline void *operator new(std::size_t, void *p) noexcept { return p; }
+-inline void *operator new[](std::size_t, void *p) noexcept { return p; }
+-inline void operator delete(void *, void *) noexcept {}
+-inline void operator delete[](void *, void *) noexcept {}
++#include <new>
+ 
+ namespace util {
+ 
+@@ -496,12 +490,12 @@ struct vector {
+     }
+ 
+     void push_back(T const &v) {
+-        reserve(p_cap + 1);
++        grow(p_size + 1);
+         new (&p_buf[p_size++]) T(v);
+     }
+ 
+     void push_back(T &&v) {
+-        reserve(p_cap + 1);
++        grow(p_size + 1);
+         new (&p_buf[p_size++]) T(util::move(v));
+     }
+ 
+@@ -512,7 +506,7 @@ struct vector {
+ 
+     template<typename ...A>
+     T &emplace_back(A &&...args) {
+-        reserve(p_cap + 1);
++        grow(p_size + 1);
+         new (&p_buf[p_size]) T(util::forward<A>(args)...);
+         return p_buf[p_size++];
+     }
+@@ -536,6 +530,12 @@ struct vector {
+         p_cap = n;
+     }
+ 
++    void grow(std::size_t n) {
++        if (p_cap < n) {
++            reserve(p_cap == 0 ? p_cap + 1 : p_cap * 2);
++        }
++    }
++
+     void shrink(std::size_t n) {
+         for (std::size_t i = n; i < p_size; ++i) {
+             p_buf[i].~T();
+@@ -743,7 +743,7 @@ struct strbuf {
+     }
+ 
+     void reserve(std::size_t n) {
+-        p_buf.reserve(n + 1);
++        p_buf.reserve(n);
+     }
+ 
+     void clear() {

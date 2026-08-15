@@ -1,0 +1,161 @@
+diff --git a/lanes-3.17.2-0.rockspec b/lanes-3.17.2-1.rockspec
+similarity index 93%
+rename from lanes-3.17.2-0.rockspec
+rename to lanes-3.17.2-1.rockspec
+index 3672055..7032ce3 100644
+--- a/lanes-3.17.2-0.rockspec
++++ b/lanes-3.17.2-1.rockspec
+@@ -7,11 +7,11 @@
+ 
+ package = "Lanes"
+ 
+-version = "3.17.2-0"
++version = "3.17.2-1"
+ 
+ source= {
+-	url= "git+https://github.com/LuaLanes/lanes.git",
+-	branch= "v3.17.2"
++	url= "git+file://@SOURCE_DIR@",
++	branch= "@BRANCH@"
+ }
+ 
+ description = {
+diff --git a/src/compat.h b/src/compat.h
+index fbcbee1..8bd50bc 100644
+--- a/src/compat.h
++++ b/src/compat.h
+@@ -79,7 +79,7 @@ int lua_setiuservalue( lua_State* L, int idx, int n);
+ #endif // LUA_VERSION_NUM < 504
+ 
+ // wrap Lua 5.4 calls under Lua 5.1 API when it is simpler that way
+-#if LUA_VERSION_NUM == 504
++#if LUA_VERSION_NUM >= 505
+ 
+ #ifndef lua501_equal // already defined when compatibility is active in luaconf.h
+ #define lua501_equal( L, a, b) lua_compare( L, a, b, LUA_OPEQ)
+@@ -92,6 +92,6 @@ int lua_setiuservalue( lua_State* L, int idx, int n);
+ #define luaL_optint(L,n,d) ((int)luaL_optinteger(L, (n), (d)))
+ #define LUA_ERRGCMM 666 // doesn't exist in Lua 5.4, we don't care about the actual value
+ 
+-#endif // LUA_VERSION_NUM == 504
++#endif // LUA_VERSION_NUM >= 505
+ 
+ #endif // __COMPAT_H__
+diff --git a/src/lanes_private.h b/src/lanes_private.h
+index 8143216..3ee455f 100644
+--- a/src/lanes_private.h
++++ b/src/lanes_private.h
+@@ -79,7 +79,7 @@ static DECLARE_CONST_UNIQUE_KEY( LANE_POINTER_REGKEY, 0xB3022205633743BC); // us
+ // 'Lane' are malloc/free'd and the handle only carries a pointer.
+ // This is not deep userdata since the handle's not portable among lanes.
+ //
+-inline Lane* lua_toLane(lua_State* L, int i_)
++static inline Lane* lua_toLane(lua_State* L, int i_)
+ {
+     return *(Lane**)(luaL_checkudata(L, i_, "Lane"));
+ }
+diff --git a/src/state.c b/src/state.c
+index 32e5b47..73664f5 100644
+--- a/src/state.c
++++ b/src/state.c
+@@ -48,6 +48,13 @@ THE SOFTWARE.
+ 
+ // ################################################################################################
+ 
++#if LUA_VERSION_NUM >= 505
++static lua_State* _lua_newstate(lua_Alloc f, void* ud) {
++    return lua_newstate(f, ud, 0);
++}
++#define lua_newstate _lua_newstate
++#endif
++
+ /*---=== Serialize require ===---
+ */
+ 
+diff --git a/src/tools.c b/src/tools.c
+index 5edc506..eb19226 100644
+--- a/src/tools.c
++++ b/src/tools.c
+@@ -1177,26 +1177,44 @@ static char const* vt_names[] =
+ };
+ #endif // USE_DEBUG_SPEW()
+ 
++/*
++** Buffer to store the result of 'string.dump'. It must be initialized
++** after the call to 'lua_dump', to ensure that the function is on the
++** top of the stack when 'lua_dump' is called. ('luaL_buffinit' might
++** push stuff.)
++*/
++struct str_Writer {
++    int init;  /* true if buffer has been initialized */
++    int finished;  /* true if buffer result has been pushed to the stack */
++    int slot;  /* final result reserved slot */
++    luaL_Buffer B;
++};
++
+ // Lua 5.4.3 style of dumping (see lstrlib.c)
+ // we have to do it that way because we can't unbalance the stack between buffer operations
+ // namely, this means we can't push a function on top of the stack *after* we initialize the buffer!
+ // luckily, this also works with earlier Lua versions
+ static int buf_writer( lua_State* L, void const* b, size_t size, void* ud)
+ {
+-    luaL_Buffer* B = (luaL_Buffer*) ud;
+-    if( !B->L)
+-    {
+-        luaL_buffinit( L, B);
++    struct str_Writer *state = (struct str_Writer *)ud;
++    if (!state->init) {
++        state->init = 1;
++        luaL_buffinit(L, &state->B);
+     }
+-    luaL_addlstring( B, (char const*) b, size);
++    if (b == NULL) {  /* finishing dump? */
++        state->finished = 1;
++        luaL_pushresult(&state->B);  /* push result */
++        lua_replace(L, state->slot);  /* move it to reserved slot */
++    }
++    else
++        luaL_addlstring(&state->B, (const char *)b, size);
+     return 0;
+ }
+ 
+ static void copy_func( Universe* U, lua_State* L2, uint_t L2_cache_i, lua_State* L, uint_t i, LookupMode mode_, char const* upName_)
+ {
+     int n, needToPush;
+-    luaL_Buffer B;
+-    B.L = NULL;
++    struct str_Writer state;
+ 
+     ASSERT_L( L2_cache_i != 0);                                                       // ... {cache} ... p
+     STACK_GROW( L, 2);
+@@ -1211,18 +1229,27 @@ static void copy_func( Universe* U, lua_State* L2, uint_t L2_cache_i, lua_State*
+         lua_pushvalue( L, i);                                // ... f
+     }
+ 
++    /* ensure function is on the top of the stack and vacate slot */
++    lua_pushvalue(L, -1);
++    state.init = 0;
++    state.slot = lua_gettop(L);
++
+     //
+     // "value returned is the error code returned by the last call 
+     // to the writer" (and we only return 0)
+     // not sure this could ever fail but for memory shortage reasons
+     // last parameter is Lua 5.4-specific (no stripping)
+-    if( lua504_dump( L, buf_writer, &B, 0) != 0)
++    if( lua504_dump( L, buf_writer, &state, 0) != 0)
+     {
+         luaL_error( L, "internal error: function dump failed.");
+     }
+ 
+-    // pushes dumped string on 'L'
+-    luaL_pushresult( &B);                                  // ... f b
++    if (!state.finished) {  /* finishing dump? */
++        luaL_pushresult(&state.B);  /* push result */
++        lua_replace(L, state.slot);  /* move it to reserved slot */
++    } else {
++        lua_settop(L, state.slot);  /* leave final result on top */
++    }
+ 
+     // if not pushed, no need to pop
+     if( needToPush)

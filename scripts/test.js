@@ -1,0 +1,368 @@
+const process = require("node:process");
+const fs = require("node:fs");
+const os = require("node:os");
+const { spawn, spawnSync } = require("node:child_process");
+const sysPath = require("node:path");
+const eachOfLimit = require("async/eachOfLimit");
+const waterfall = require("async/waterfall");
+const { explore } = require("fs-explorer");
+
+const batchSuffix = os.platform() === "win32" ? ".bat" : "";
+const exeSuffix = os.platform() === "win32" ? ".exe" : "";
+const WORKSPACE_ROOT = process.env.WORKSPACE_ROOT ? sysPath.resolve(process.env.WORKSPACE_ROOT) : sysPath.resolve(__dirname, "..");
+const LUAROCKS_BINDIR = process.env.LUAROCKS_BINDIR ? sysPath.resolve(process.env.LUAROCKS_BINDIR) : sysPath.join(WORKSPACE_ROOT, "luarocks");
+const luarcoks = sysPath.join(LUAROCKS_BINDIR, `luarocks${ batchSuffix }`);
+
+const spawnShellSync = (cmd, args, options = {}) => {
+    // https://nodejs.org/docs/latest-v18.x/api/child_process.html#spawning-bat-and-cmd-files-on-windows
+    if (os.platform() === "win32" && (cmd.endsWith(".bat") || cmd.endsWith(".cmd"))) {
+        if (cmd.includes(" ")) {
+            cmd = `"${ cmd }"`;
+        }
+        options.shell = true;
+    }
+
+    return spawnSync(cmd, args, options);
+};
+
+const lua_interpreter = spawnShellSync(luarcoks, ["config", "lua_interpreter"]).stdout.toString().trim();
+const LUA_BINDIR = spawnShellSync(luarcoks, ["config", "variables.LUA_BINDIR"]).stdout.toString().trim();
+const LUAROCKS_SYSCONFDIR = spawnShellSync(luarcoks, ["config", "sysconfdir"]).stdout.toString().trim();
+const LUA_BINDIR_DEBUG = LUA_BINDIR.replace("Release", "Debug");
+const ABIVER = spawnShellSync(luarcoks, ["config", "lua_version"]).stdout.toString().trim();
+const LUA_MODULES = sysPath.join(LUAROCKS_BINDIR, "lua_modules");
+
+const SAMPLES_PATH = sysPath.join(WORKSPACE_ROOT, "samples");
+const PYTHON_VENV_PATH = process.env.PYTHON_VENV_PATH ? sysPath.resolve(process.env.PYTHON_VENV_PATH) : sysPath.join(SAMPLES_PATH, ".venv");
+const PYTHON = sysPath.join(PYTHON_VENV_PATH, os.platform() === "win32" ? "Scripts" : "bin", `python${ exeSuffix }`);
+
+const config = {
+    Debug: {
+        exe: sysPath.join(LUA_BINDIR_DEBUG, lua_interpreter),
+        env: {
+            LUAROCKS_BINDIR,
+            WORKSPACE_ROOT,
+        },
+        argv: [],
+    },
+    Release: {
+        exe: sysPath.join(LUAROCKS_BINDIR, `lua${ batchSuffix }`),
+        env: {
+            LUAROCKS_BINDIR,
+            WORKSPACE_ROOT,
+        },
+        argv: [],
+    },
+};
+
+if (os.platform() === "win32") {
+    const { APPDATA, PATH } = process.env;
+
+    config.Release.env.PATH = [
+        sysPath.join(LUAROCKS_BINDIR, "lua_modules", "lib", "lua", ABIVER),
+        sysPath.join(LUAROCKS_BINDIR, "lua_modules", "bin"),
+        sysPath.join(APPDATA, "luarocks", "bin"),
+        PATH,
+    ].join(";");
+    config.Release.env.LUAROCKS_SYSCONFDIR = LUAROCKS_SYSCONFDIR;
+
+    config.Debug.env.PATH = [
+        sysPath.resolve(LUA_BINDIR_DEBUG, "..", "lib"),
+        sysPath.join(LUAROCKS_BINDIR, "lua_modules", "bin"),
+        sysPath.join(APPDATA, "luarocks", "bin"),
+        PATH,
+    ].join(";");
+    config.Debug.env.LUAROCKS_SYSCONFDIR = LUAROCKS_SYSCONFDIR;
+
+    config.Debug.argv = [
+        "-e",
+        [
+            `package.path="${ [
+                `${ sysPath.resolve(LUA_BINDIR_DEBUG, "..", "lua").replaceAll("\\", "/") }/?.lua`,
+                `${ sysPath.resolve(LUA_BINDIR_DEBUG, "..", "lua").replaceAll("\\", "/") }/?/init.lua`,
+                `${ LUA_MODULES }/share/lua/${ ABIVER }/?.lua`,
+                `${ LUA_MODULES }/share/lua/${ ABIVER }/?/init.lua`,
+                `${ APPDATA }/luarocks/share/lua/${ ABIVER }/?.lua`,
+                `${ APPDATA }/luarocks/share/lua/${ ABIVER }/?/init.lua`,
+            ].join(";").replace(/[\\]/g, "/") };"..package.path`,
+
+            `package.cpath="${ [
+                `${ sysPath.resolve(LUA_BINDIR_DEBUG, "..", "lib").replaceAll("\\", "/") }/?.dll`,
+                `${ sysPath.resolve(LUA_BINDIR_DEBUG, "..", "lib").replaceAll("\\", "/") }/loadall.dll`,
+                `${ LUA_MODULES }/lib/lua/${ ABIVER }/?.dll`,
+                `${ APPDATA }/luarocks/lib/lua/${ ABIVER }/?.dll`,
+            ].join(";").replace(/[\\]/g, "/") };"..package.cpath`,
+        ].join(";"),
+    ];
+} else if (fs.existsSync(config.Debug.exe)) {
+    config.Debug.argv = [
+        "-e",
+        [
+            `package.path="${ [
+                `${ sysPath.resolve(LUA_BINDIR_DEBUG, "..", "lua") }/?.lua`,
+                `${ sysPath.resolve(LUA_BINDIR_DEBUG, "..", "lua") }/?/init.lua`,
+                `${ LUA_MODULES }/share/lua/${ ABIVER }/?.lua`,
+                `${ LUA_MODULES }/share/lua/${ ABIVER }/?/init.lua`,
+            ].join(";").replace(/[\\]/g, "/") };"..package.path`,
+
+            `package.cpath="${ [
+                `${ sysPath.resolve(LUA_BINDIR_DEBUG, "..", "lib") }/?.so`,
+                `${ sysPath.resolve(LUA_BINDIR_DEBUG, "..", "lib") }/loadall.so`,
+                `${ LUA_MODULES }/lib/lua/${ ABIVER }/?.so`,
+            ].join(";").replace(/[\\]/g, "/") };"..package.cpath`,
+        ].join(";"),
+    ];
+}
+
+const unixPath = path => {
+    return path.replaceAll("\\", "/").replace(/^(\w+):/, (match, drive) => {
+        return `/${ drive.toLowerCase() }`;
+    });
+};
+
+const unixEscape = (arg, verbatim = true) => {
+    if (verbatim && os.platform() === "win32" && arg[0] === "/" && arg[1] !== "/") {
+        arg = `/${ arg }`;
+    }
+
+    if (/[^\w/=.-]/.test(arg)) {
+        arg = `'${ arg.replaceAll("'", "'\\''") }'`;
+    }
+
+    return arg;
+};
+
+const unixEnv = (key, value) => {
+    if (os.platform() === "win32" && key === "PATH") {
+        value = value.split(sysPath.delimiter).map(unixPath).join(":");
+    }
+    return `${ key }=${ unixEscape(value, false) }`;
+};
+
+const unixCmd = argv => {
+    return argv.map(arg => unixEscape(arg)).join(" ");
+};
+
+const run = (file, env, options, next) => {
+    const { BUILD_TYPE, ALLEGRO5_BUILD_TYPE } = options.env;
+    if (
+        BUILD_TYPE && BUILD_TYPE !== env.BUILD_TYPE
+        || ALLEGRO5_BUILD_TYPE && ALLEGRO5_BUILD_TYPE !== env.ALLEGRO5_BUILD_TYPE
+    ) {
+        next(null, 0);
+        return;
+    }
+
+    const keys = Array.from(new Set([...Object.keys(config[env.BUILD_TYPE].env), ...Object.keys(env)]));
+    env = Object.assign({}, process.env, config[env.BUILD_TYPE].env, options.env, env);
+
+    const extname = sysPath.extname(file);
+
+    const args = [];
+
+    if (extname === ".lua") {
+        const argv = [...config[env.BUILD_TYPE].argv, file, ...options.argv];
+        if (options.argv.length === 0 && [
+            "ex_config.lua",
+            "ex_file.lua",
+            "ex_path_test.lua",
+            "ex_utf8.lua",
+        ].includes(sysPath.basename(file))) {
+            argv.push("-v", "--output=gtest");
+        }
+        args.push(config[env.BUILD_TYPE].exe, argv);
+    } else if (extname === ".py") {
+        args.push(PYTHON, [file, ...options.argv]);
+    } else {
+        throw new Error(`Unsupported extenstion ${ extname } for file ${ file }`);
+    }
+
+    const cmd = [keys.map(key => unixEnv(key, env[key])).join(" "), unixCmd(args.flat())].join(" ");
+
+    if (options.bash) {
+        console.log(cmd, "||", "exit $?");
+        next(null, 0);
+        return;
+    }
+
+    console.log(cmd);
+
+    const opts = {
+        stdio: options.stdio,
+        env,
+        cwd: options.cwd,
+    };
+
+    // https://nodejs.org/docs/latest-v18.x/api/child_process.html#spawning-bat-and-cmd-files-on-windows
+    if (os.platform() === "win32" && (args[0].endsWith(".bat") || args[0].endsWith(".cmd"))) {
+        if (args[0].includes(" ")) {
+            args[0] = `"${ args[0] }"`;
+        }
+        opts.shell = true;
+    }
+
+    const child = spawn(...args, opts);
+
+    child.on("error", err => {
+        if (next !== null) {
+            next(err);
+            next = null;
+        }
+    });
+
+    child.on("close", (code, signal) => {
+        if (next !== null) {
+            next(code, signal);
+            next = null;
+        }
+    });
+
+    if (typeof options.run === "function") {
+        options.run(child);
+    }
+};
+
+const bash_init = "#!/usr/bin/env bash\n\nset -o pipefail\n";
+
+const runFile = (file, options, cb) => {
+    waterfall([
+        next => {
+            run(file, {
+                BUILD_TYPE: "Release",
+                ALLEGRO5_BUILD_TYPE: "Release",
+            }, options, next);
+        },
+
+        (signal, next) => {
+            run(file, {
+                BUILD_TYPE: "Debug",
+                ALLEGRO5_BUILD_TYPE: "Debug",
+            }, options, next);
+        },
+    ], (code, signal) => {
+        cb(code);
+    });
+};
+
+const main = (options, cb) => {
+    options = Object.assign({
+        cwd: WORKSPACE_ROOT,
+        includes: [],
+        includes_ext: [".lua"],
+        excludes: [],
+        argv: [],
+        stdio: "inherit",
+    }, options);
+
+    const { cwd, includes, includes_ext, excludes } = options;
+
+    excludes.push(...["common.lua"]);
+
+    if (options.bash) {
+        console.log([
+            bash_init,
+            `cd ${ unixEscape(unixPath(cwd), false) } || exit $?`,
+            "",
+        ].join("\n"));
+    }
+
+    const runs = new Set();
+
+    waterfall([
+        next => {
+            eachOfLimit([
+                "examples",
+                "samples",
+                "demos/cosmic_protector/src/main.lua",
+                "demos/shooter/main.lua",
+                "demos/skater/src/skater.lua",
+                "demos/speed/main.lua",
+                "demos/wiki/src/game.lua",
+            ], 1, (folder, i, next) => {
+                explore(sysPath.join(cwd, folder), (path, stats, next) => {
+                    const file = sysPath.relative(cwd, path);
+                    const basename = sysPath.basename(file);
+                    const extname = sysPath.extname(file);
+
+                    if (
+                        includes.length === 0 && folder === "examples" && !basename.startsWith("ex_") ||
+                        (includes.length === 0 || !includes.some(include => basename.startsWith(include))) && [ "_", "." ].includes(basename[0]) ||
+                        !includes_ext.includes(extname) ||
+                        excludes.some(exclude => basename.startsWith(exclude)) ||
+                        includes.length !== 0 && !includes.some(include => basename.includes(include) || file.replaceAll("\\", "/") === include.replaceAll("\\", "/"))
+                    ) {
+                        next();
+                        return;
+                    }
+
+                    runs.add(file.replaceAll("\\", "/"));
+                    runFile(file, options, next);
+                }, (path, stats, files, state, next) => {
+                    const basename = sysPath.basename(path);
+                    const skip = folder === "." || state === "begin" && (basename[0] === "." || basename === "BackUp");
+                    next(null, skip);
+                }, err => {
+                    if (err && err.code === "ENOENT") {
+                        err = null;
+                    }
+                    next(err);
+                });
+            }, next);
+        },
+        next => {
+            eachOfLimit(includes, 1, (file, i, next) => {
+                if (fs.existsSync(file) && !fs.lstatSync(file).isDirectory() && !runs.has(file.replaceAll("\\", "/"))) {
+                    runFile(file, options, next);
+                } else {
+                    next();
+                }
+            }, next);
+        },
+    ], cb);
+};
+
+exports.main = main;
+
+if (typeof require !== "undefined" && require.main === module) {
+    const options = {
+        includes: [],
+        excludes: [],
+        argv: [],
+        env: {},
+        "--": 0,
+    };
+
+    for (const arg of process.argv.slice(2)) {
+        if (arg === "--") {
+            options[arg]++;
+        } else if (arg[0] === "!") {
+            options.excludes.push(arg.slice(1));
+        } else if (options["--"] === 1 && arg[0] !== "-") {
+            options.includes.push(arg);
+        } else if (options["--"] > 1 || options["--"] === 1 && arg[0] === "-") {
+            options.argv.push(arg);
+        } else if (["--Debug", "--Release"].includes(arg)) {
+            options.env.BUILD_TYPE = arg.slice(2);
+        } else if (arg === "--bash") {
+            options[arg.slice(2)] = true;
+        } else {
+            options.cwd = sysPath.resolve(arg);
+            options["--"] = 1;
+        }
+    }
+
+    main(options, err => {
+        if (err) {
+            if (!Array.isArray(err)) {
+                throw err;
+            }
+
+            const code = err.flat(Infinity)[0];
+            if (typeof code !== "number") {
+                throw code;
+            }
+
+            process.exitCode = code;
+        }
+    });
+}

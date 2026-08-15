@@ -1,0 +1,101 @@
+// Resource script for LuaJIT console EXEs.
+
+#include "lua_ver_rc.h"
+
+#ifndef RT_MANIFEST
+#define RT_MANIFEST                        24
+#endif
+
+#ifndef CREATEPROCESS_MANIFEST_RESOURCE_ID
+#define CREATEPROCESS_MANIFEST_RESOURCE_ID  1
+#endif
+
+#ifndef ISOLATIONAWARE_MANIFEST_RESOURCE_ID
+#define ISOLATIONAWARE_MANIFEST_RESOURCE_ID 2
+#endif
+
+#ifndef ISOLATIONAWARE_NOSTATICIMPORT_MANIFEST_RESOURCE_ID
+#define ISOLATIONAWARE_NOSTATICIMPORT_MANIFEST_RESOURCE_ID 3
+#endif
+
+#ifndef ISOLATIONPOLICY_MANIFEST_RESOURCE_ID
+#define ISOLATIONPOLICY_MANIFEST_RESOURCE_ID 4
+#endif
+
+#ifndef ISOLATIONPOLICY_BROWSER_MANIFEST_RESOURCE_ID
+#define ISOLATIONPOLICY_BROWSER_MANIFEST_RESOURCE_ID 5
+#endif
+
+
+#ifndef IDI_APPLICATION
+#define IDI_APPLICATION     32512
+#endif
+
+#ifndef IDI_HAND
+#define IDI_HAND            32513
+#endif
+
+#ifndef IDI_QUESTION
+#define IDI_QUESTION        32514
+#endif
+
+#ifndef IDI_EXCLAMATION
+#define IDI_EXCLAMATION     32515
+#endif
+
+#ifndef IDI_ASTERISK
+#define IDI_ASTERISK        32516
+#endif
+
+#ifndef IDI_WINLOGO
+#define IDI_WINLOGO         32517
+#endif
+
+#ifndef IDI_SHIELD
+#define IDI_SHIELD          32518
+#endif
+
+
+// Include the manifest file that indicates we support all
+// current versions of Windows.
+CREATEPROCESS_MANIFEST_RESOURCE_ID  ICON DISCARDABLE "lua.ico"
+IDI_APPLICATION                     ICON DISCARDABLE "lua.ico"
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Version
+//
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION LUA_PRODUCT_VERSION
+ PRODUCTVERSION LUA_PRODUCT_VERSION
+ FILEFLAGSMASK 0x3fL
+#ifdef _DEBUG
+ FILEFLAGS VS_FF_DEBUG
+#else
+ FILEFLAGS 0x0L
+#endif
+ FILEOS VOS__WINDOWS32
+ FILETYPE VFT_APP
+ FILESUBTYPE 0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "000004b0"
+        BEGIN
+            // VALUE "CompanyName", LUA_COMPANY ""
+            VALUE "FileDescription", "LuaJIT"
+            VALUE "FileVersion", LUA_VERSION
+            VALUE "InternalName", "LuaJIT Console"
+            // VALUE "LegalCopyright", LUA_COPYRIGHT ""
+            VALUE "OriginalFilename", "lua-" LUA_VERSION ".exe"
+            VALUE "ProductName", "LuaJIT"
+            VALUE "ProductVersion", LUA_VERSION
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x40c, 1200
+    END
+END

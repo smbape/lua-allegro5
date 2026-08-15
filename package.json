@@ -1,0 +1,22 @@
+{
+  "name": "allegro5_lua",
+  "version": "0.0.0",
+  "private": true,
+  "description": "",
+  "scripts": {
+    "version": "node scripts/version.js",
+    "test": "node scripts/test.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "async": "^3.2.4",
+    "doctoc": "^2.2.1",
+    "eol": "^0.9.1",
+    "fs-explorer": "git+ssh://git@github.com:smbape/node-fs-explorer.git#master",
+    "fs-extra": "^11.1.1",
+    "mkdirp": "^3.0.1",
+    "uuid": "^9.0.0"
+  }
+}

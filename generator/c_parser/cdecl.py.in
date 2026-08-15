@@ -1,0 +1,834 @@
+import io
+import json
+import re
+import sys
+from typing import Tuple
+
+# This is not required if you've installed pycparser into
+# your site-packages/ with setup.py
+sys.path.extend(['.', '..'])
+
+from pycparser import c_parser, c_ast, c_generator
+from pycparserext import ext_c_parser, ext_c_generator
+
+SUPPORTED_QUALIFIERS = [
+    "const",
+    "restrict",
+    "volatile",
+    "_Atomic",
+]
+
+SUPPORTED_SOTRAGES = [
+    "static",
+    "extern",
+]
+
+
+def _check_qualifiers(node: c_ast.Decl) -> None:
+    for qualifier in node.quals:
+        if qualifier not in SUPPORTED_QUALIFIERS:
+            raise TypeError(f"Unsupported qualifier {qualifier}")
+
+
+def _check_storage(node: c_ast.Decl) -> None:
+    if not hasattr(node, "storage"):
+        return
+
+    for storage in node.storage:
+        if storage not in SUPPORTED_SOTRAGES:
+            raise TypeError(f"Unsupported storage {storage}")
+
+
+def _fix_c_type(stmt_type: str, fix_pointer: bool = True, fix_array: bool = True) -> str:
+    if stmt_type.startswith("struct ") and "{" not in stmt_type:
+        stmt_type = stmt_type[len("struct "):]
+
+    if stmt_type.startswith("union ") and "{" not in stmt_type:
+        stmt_type = stmt_type[len("union "):]
+
+    if fix_pointer and "(*)" in stmt_type and stmt_type.endswith(")"):
+        stmt_type = stmt_type.replace("(*)", "", 1)
+        stmt_type = f"CFunctionInvoker<{stmt_type}>::Pointer"
+
+    if fix_array and stmt_type.endswith("]"):
+        stmt_type = f"expand_all_extents_t<{stmt_type}>"
+
+    return stmt_type.replace("_Bool", "bool")
+
+
+def _fix_func_cdef(cdef: str) -> str:
+    if cdef.startswith("inline "):
+        cdef = cdef[len("inline "):]
+
+    if cdef.startswith("extern "):
+        cdef = cdef[len("extern "):]
+
+    return cdef
+
+
+def _is_variadic_param(param):
+    typ = type(param)
+    return typ == c_ast.Decl and type(param.type) == c_ast.TypeDecl and type(param.type.type) == c_ast.IdentifierType and " ".join(param.type.type.names) == "va_list"
+
+
+def _remove_top_most_const_qualifier(stmt_type, remove_all: bool = False):
+    backup_stmt_type = stmt_type
+
+    if remove_all:
+        stmt_type = re.sub(r"^const\b\s*", "", stmt_type)
+        stmt_type = re.sub(r"\s*\bconst\b", "", stmt_type)
+        stmt_type = stmt_type.strip()
+    elif stmt_type.startswith("const ") and "*" not in stmt_type and not stmt_type.endswith("]"):
+        stmt_type = stmt_type[len("const "):]
+
+    return stmt_type, stmt_type != backup_stmt_type
+
+
+struct_or_union = re.compile(r"^(?:struct|union)[^\S\n]+\w+$")
+
+class CHeaderParser(object):
+    def __init__(self):
+        self.decls = None
+        self.typedefs = None
+        self.aliases = None
+        self.functions = None
+        self.properties = None
+        self.forward_typedefs = None
+        self.structs = None
+        self.unions = None
+        self.enums = None
+        self.struct_decls = None
+        self.structs_ffi_types = None
+        self.cdef = None
+        self.include_names = None
+        self.exclude_names = None
+        self.generator = ext_c_generator.GnuCGenerator()
+
+    def generate_declarations(self, c_decl: str, filename: str = '<stdin>', includes: None | list[str] = None,
+                              namespace: str = ".",
+                              include_names: None | list[str] = None,
+                              exclude_names: None | list[str] = None):
+        if includes is None:
+            includes = []
+        if include_names is None:
+            include_names = []
+
+        self.decls = []
+        self.typedefs = {}
+        self.aliases = {}
+        self.functions = {}
+        self.properties = []
+        self.forward_typedefs = {}
+        self.structs = {}
+        self.unions = {}
+        self.enums = {}
+        self.struct_decls = {}
+        self.structs_ffi_types = {}
+        self.cdef = []
+        self.include_names = include_names
+        self.exclude_names = exclude_names
+
+        parser = ext_c_parser.GnuCParser()
+        file_ast = parser.parse(c_decl, filename=filename)
+
+        if not isinstance(file_ast, c_ast.FileAST):
+            return "Not a valid declaration"
+
+        self._get_information(file_ast)
+
+        filename = filename.replace("\\", "/")
+
+        for node in file_ast.ext:
+            file: str = node.coord.file.replace("\\", "/")
+            # if file == "<built-in>":
+            if file != filename and not any(file.startswith(include + "/") for include in includes):
+                continue
+
+            ignore, is_private = self._ignore_decl(node)
+
+            if ignore:
+                if not is_private:
+                    self._add_cdef(node)
+                continue
+
+            self._generate_declaration(node, [])
+
+        for typename in self.forward_typedefs:
+            if typename not in self.structs and typename not in self.unions:
+                self.decls.append([
+                    f"struct {typename}",
+                    "",
+                    [],
+                    [],
+                    None,
+                    ""
+                ])
+
+        if len(self.properties) != 0:
+            self.decls.append([
+                namespace,
+                "",
+                ["/Properties"],
+                self.properties,
+                "",
+                ""
+            ])
+
+        return {
+            "decls": self.decls,
+            "typedefs": self.typedefs,
+            "aliases": self.aliases,
+            "functions": self.functions,
+            "structs_ffi_types": self.structs_ffi_types,
+
+            # https://stackoverflow.com/questions/7961363/removing-duplicates-in-lists#answer-7961390
+            "cdef": ';\n'.join(list(dict.fromkeys(self.cdef))) + ';',
+        }
+
+    def _visit(self, node):
+        return self.generator.visit(node).replace("_Bool", "bool")
+
+    def _get_information(self, file_ast: c_ast.FileAST):
+        for node in file_ast.ext:
+            modifiers = []
+            while type(node) in (c_ast.Typedef, c_ast.Decl, c_ast.TypeDecl, c_ast.PtrDecl, c_ast.ArrayDecl):
+                modifiers.append(node)
+                node = node.type
+
+            is_type_def = len(modifiers) == 2 and type(modifiers[0]) == c_ast.Typedef and (type(modifiers[1]) == c_ast.TypeDecl or type(modifiers[1]) == c_ast.PtrDecl or type(modifiers[1]) == c_ast.ArrayDecl)
+            typ = type(node)
+
+            if typ == c_ast.Struct:
+                if node.decls:
+                    if node.name is None:
+                        if is_type_def:
+                            self.structs[modifiers[0].name] = c_ast.Struct(
+                                name=modifiers[0].name,
+                                decls=node.decls,
+                                coord=node.coord
+                            )
+                    else:
+                        if is_type_def:
+                            self.structs[modifiers[0].name] = modifiers[0]
+                        self.structs[node.name] = node
+            elif typ == c_ast.Union:
+                if node.decls:
+                    if node.name is None:
+                        if is_type_def:
+                            self.unions[modifiers[0].name] = c_ast.Struct(
+                                name=modifiers[0].name,
+                                decls=node.decls,
+                                coord=node.coord
+                            )
+                    else:
+                        self.unions[node.name] = node
+                        if is_type_def:
+                            self.unions[modifiers[0].name] = modifiers[0]
+            elif typ == c_ast.Enum:
+                if node.name:
+                    self.enums[node.name] = node
+            elif typ == c_ast.IdentifierType:
+                if is_type_def:
+                    name = modifiers[0].name
+                    self.aliases[name] = " ".join(node.names)
+            elif typ in (c_ast.FuncDecl, ext_c_parser.FuncDeclExt):
+                if is_type_def:
+                    name = modifiers[0].name
+                    self.functions[name] = True
+
+    def _ignore_name(self, name: str) -> bool:
+        """ The convention is to ignore names that start with or end with and underscore.
+        """
+        return (name in self.exclude_names) or (not name in self.include_names) and name.startswith("_") or name.endswith("_")
+
+    def _ignore_decl(self, node: c_ast.Typedef) -> Tuple[bool, bool]:
+        typ = type(node)
+
+        # Ignore pragma statements and declarations of private elements
+        if typ == c_ast.Pragma or typ == c_ast.Decl and node.name and self._ignore_name(node.name):
+            return True, True
+
+        if type(node) != c_ast.Typedef:
+            return False, False
+
+        is_private = self._ignore_name(node.name)
+
+        modifiers = []
+        while typ in (c_ast.Typedef, c_ast.TypeDecl, c_ast.PtrDecl, c_ast.Decl, c_ast.ArrayDecl):
+            modifiers.append(node)
+            node = node.type
+            typ = type(node)
+
+        if typ in (c_ast.IdentifierType, c_ast.FuncDecl, ext_c_parser.FuncDeclExt):
+            return True, is_private
+
+        if typ in (c_ast.Struct, c_ast.Union) and len(modifiers) >= 2 and type(modifiers[-2]) == c_ast.PtrDecl and type(
+                modifiers[-1]) == c_ast.TypeDecl:
+            return True, is_private
+
+        return False, is_private
+
+    def _generate_declaration(self,
+                              node: c_ast.Typedef | c_ast.Decl | c_ast.TypeDecl | c_ast.Struct | c_ast.Union | c_ast.Enum | c_ast.FuncDecl | ext_c_parser.FuncDeclExt | c_ast.FuncDef,
+                              modifiers: list,
+                              emit_cdef: bool = True) -> None:
+        """ Receives a c_ast.Decl note and returns its explanation in
+            English.
+        """
+        typ = type(node)
+
+        if typ == c_ast.Decl and type(node.type) not in (c_ast.FuncDecl, ext_c_parser.FuncDeclExt) and "extern" in node.storage:
+            self._generate_global_decl(node)
+
+        elif typ == c_ast.Typedef or typ == c_ast.TypeDecl or typ == c_ast.Decl:
+            # TODO add node.name as alias of node.type if c_ast.Typedef
+            self._generate_declaration(node.type, modifiers + [node], emit_cdef)
+
+        elif typ in (c_ast.Struct, c_ast.Union):
+            self._generate_struct_decl(node, modifiers, emit_cdef)
+
+        elif typ == c_ast.Enum:
+            self._generate_enum_decl(node, modifiers)
+
+        elif typ in (c_ast.FuncDecl, ext_c_parser.FuncDeclExt):
+            self._generate_func_decl(node, modifiers)
+
+        elif typ == c_ast.FuncDef:
+            self._generate_func_decl(node.decl.type, modifiers)
+
+        else:
+            raise TypeError(f"Unsupported type {typ}")
+
+    def _generate_global_decl(self, node: c_ast.Decl) -> None:
+        if self._ignore_name(node.name):
+            return
+
+        _type = self._visit(node.type)
+        decl = ["/R"]
+
+        _type, changed = _remove_top_most_const_qualifier(_type)
+        if changed:
+            decl.append("/C")
+
+        _type = _fix_c_type(_type)
+
+        self.properties.append([_type, node.name, "", decl])
+
+    def _generate_struct_decl(self, node: c_ast.Struct | c_ast.Union, modifiers, emit_cdef: bool = True) -> None:
+        name = node.name
+
+        for modifier in reversed(modifiers):
+            typ = type(modifier)
+
+            # Ignore typedef to pointer and array struct
+            if typ in (c_ast.ArrayDecl, c_ast.PtrDecl):
+                return
+
+            if typ == c_ast.TypeDecl:
+                name = modifier.declname
+                break
+
+            if typ == c_ast.Typedef:
+                name = modifier.name
+                break
+
+        if self._ignore_name(name):
+            return
+
+        is_type_def = len(modifiers) == 2 and type(modifiers[0]) == c_ast.Typedef and type(modifiers[1]) == c_ast.TypeDecl
+        if is_type_def and node.name:
+            self.typedefs[modifiers[0].name] = "struct " + node.name
+
+        if name != node.name and self._is_struct_or_union(node.name):
+            if node.name in self.structs:
+                struct = self.structs[node.name]
+                if struct.decls:
+                    self._generate_declaration(struct, [], False)
+            elif node.name in self.unions:
+                union = self.unions[node.name]
+                if union.decls:
+                    self._generate_declaration(union, [], False)
+
+            self.properties.append([node.name, name, "", ["/R", "=this", "/S"]])
+
+            if emit_cdef and not name.startswith("unanmed_type_"):
+                self._add_cdef(modifiers[0])
+
+            return
+
+        if emit_cdef and not name.startswith("unanmed_type_"):
+            self._add_cdef(node if len(modifiers) == 0 else modifiers[0])
+
+        if name in self.struct_decls:
+            return
+
+        if not node.decls:
+            self.forward_typedefs[name] = True
+            return
+
+        if name in self.forward_typedefs:
+            del self.forward_typedefs[name]
+
+        typ = type(node)
+
+        all_properties = [self._generate_node_decl(decl, decl=["/RW"], parent_name=name) for decl in node.decls]
+        properties = [decl for decl in all_properties if not self._ignore_name(decl[1])]
+        has_default_constructors = typ == c_ast.Struct and len(properties) == len(all_properties) and all(
+            "/RW" in decl for (_, _, _, decl) in properties)
+
+        self.decls.append([
+            f"struct {name}",
+            "",
+            ["/Simple"] + (["/DC"] if has_default_constructors else []),
+            properties,
+            None,
+            ""
+        ])
+
+        self.struct_decls[name] = True
+
+    def _generate_enum_decl(self, node: c_ast.Enum, modifiers) -> None:
+        self._add_cdef(node if len(modifiers) == 0 else modifiers[0])
+
+        if not node.values:
+            return
+
+        values = [
+            [
+                f"const {decl.name}",
+                self._visit(decl.value),
+                [],
+                [],
+                None,
+            ] for i, decl in enumerate(node.values)
+        ]
+
+        enum_name = node.name if node.name else "<unnamed>"
+        self.decls.append([
+            f"enum {enum_name}",
+            "",
+            [],
+            values,
+            None,
+            ""
+        ])
+
+    def _generate_func_decl(self, node: c_ast.FuncDecl | ext_c_parser.FuncDeclExt, modifiers) -> None:
+        ret_node = node.type
+        while type(ret_node) in (c_ast.ArrayDecl, c_ast.PtrDecl):
+            ret_node = ret_node.type
+
+        if type(ret_node) != c_ast.TypeDecl:
+            raise TypeError(f"Unsupported type {type(ret_node)}")
+
+        name = ret_node.declname
+
+        if name and self._ignore_name(name):
+            return
+
+        if name:
+            self._add_cdef(node if len(modifiers) == 0 else modifiers[0])
+
+        _check_qualifiers(ret_node)
+
+        ret_type = self._visit(node.type)
+        self._add_ffi_type(node.type)
+
+        decl = []
+
+        ret_type, changed = _remove_top_most_const_qualifier(ret_type)
+        if changed:
+            decl.append("/C")
+
+        ret_type = _fix_c_type(ret_type)
+
+        args = []
+        if node.args:
+            if any(_is_variadic_param(param) for param in node.args.params):
+                print(f"Ignored function {name} due to variadic param: {self._visit(node)}",
+                      file=sys.stderr)
+                return
+
+            if not (len(node.args.params) == 1 and self._visit(node.args.params[0]) == "void"):
+                is_variadic = any(type(param) == c_ast.EllipsisParam for param in node.args.params)
+
+                for i, param in enumerate(node.args.params):
+                    if type(param) == c_ast.EllipsisParam:
+                        arg = ["...", "", "", []]
+                    else:
+                        arg = self._generate_node_decl(param, decl=[], default_name=f"arg{i}")
+
+                    args.append(arg)
+
+                for i in range(len(args) - 1, -1, -1):
+                    arg = args[i]
+                    if "/C" in arg[3]:
+                        continue
+
+                    stmt_type = arg[0]
+
+                    if stmt_type.endswith(" **"):
+                        arg[2] = "nullptr"
+                        arg[3].append("/IO")
+                    elif stmt_type.endswith(" *") and stmt_type[0:-2] in (
+                        "unsigned char",
+                        "bool",
+                        "size_t",
+                        "int",
+                        "unsigned int",
+                        "unsigned",
+                        "short",
+                        "unsigned short",
+                        "long",
+                        "unsigned long",
+                        "float",
+                        "double",
+                    ):
+                        arg[2] = f"static_cast<{stmt_type[0:-2]}>(0)"
+                        arg[3].append("/IO")
+
+                    if "/IO" not in arg[3]:
+                        break
+
+        if name:
+            self.decls.append([
+                f"{name}",
+                ret_type,
+                decl,
+                args,
+                ret_type,
+                ""
+            ])
+
+    def _generate_node_decl(self, node, decl: list[str], default_name: str | None = None,
+                            parent_name: str | None = None) -> list:
+        if type(node) not in (c_ast.Decl, c_ast.Typename):
+            raise TypeError(f"Unsupported type {type(node)}")
+
+        _check_qualifiers(node)
+        _check_storage(node)
+
+        if type(node) == c_ast.Decl:
+            modifiers = []
+            type_node = node.type
+            while type(type_node) in (c_ast.ArrayDecl, c_ast.PtrDecl):
+                modifiers.append(type_node)
+                type_node = type_node.type
+
+            if type(type_node) in (c_ast.FuncDecl, ext_c_parser.FuncDeclExt):
+                # self._generate_func_decl(type_node, [])
+                pass
+            elif type(type_node.type) in (c_ast.Struct, c_ast.Union) and type_node.type.name is None:
+                declname = type_node.declname
+                if parent_name:
+                    declname = f"{parent_name}::{declname}"
+                declname = f"decltype({declname})"
+
+                typedef = declname
+
+                modifiers = list(reversed(modifiers))
+                for i, modifier in enumerate(modifiers):
+                    if type(modifier) == c_ast.ArrayDecl and (i == 0 or type(modifiers[i - 1]) != c_ast.ArrayDecl):
+                        typedef = f"std::remove_all_extents_t<{typedef}>"
+
+                    if type(modifier) == c_ast.PtrDecl and (i == 0 or type(modifiers[i - 1]) != c_ast.PtrDecl):
+                        typedef = f"remove_all_pointers_t<{typedef}>"
+
+                typename = f"unanmed_type_{len(self.typedefs)}"
+                self.typedefs[typename] = typedef
+
+                if type(type_node.type) == c_ast.Struct:
+                    self.structs[typename] = type_node.type
+                elif type(type_node.type) == c_ast.Union:
+                    self.unions[typename] = type_node.type
+
+                type_node.type.name = typename
+                self._generate_struct_decl(type_node.type, [])
+
+                typedecl = c_ast.TypeDecl(
+                    declname=type_node.declname,
+                    quals=[],
+                    align=None,
+                    type=c_ast.IdentifierType(names=[typename])
+                )
+
+                if len(modifiers) == 0:
+                    node.type = typedecl
+                else:
+                    modifiers[0].type = typedecl
+
+        stmt_type = self._visit(node.type)
+        self._add_ffi_type(node.type)
+
+        stmt_name = node.name if node.name else default_name
+        stmt_defval = "" if not hasattr(node, "init") or node.init is None else self._visit(node.init)
+
+        if self._is_struct_or_union(stmt_type) and "/RW" in decl:
+            if not stmt_type in self.struct_decls:
+                if stmt_type in self.structs:
+                    self._generate_declaration(self.structs[stmt_type], [])
+                elif stmt_type in self.unions:
+                    self._generate_declaration(self.unions[stmt_type], [])
+            decl.append("/Ref")
+
+        if stmt_type.startswith("static "):
+            decl.append("/S")
+            stmt_type = stmt_type.replace("static ", "", 1)
+
+        stmt_type, changed = _remove_top_most_const_qualifier(stmt_type)
+        if changed:
+            decl.append("/C")
+
+        stmt_type = _fix_c_type(stmt_type, fix_array=False)
+
+        if "/C" not in decl and "/RW" in decl and stmt_type.endswith(" *") and stmt_type[0:-2] in (
+            "bool",
+            "size_t",
+            "int",
+            "unsigned int",
+            "unsigned",
+            "short",
+            "unsigned short",
+            "long",
+            "unsigned long",
+            "float",
+            "double",
+        ):
+            decl.extend([
+                "/R",
+                "/RExpr=*$0",
+                "/W",
+                f"/WType={stmt_type[0:-2]}",
+                f"/WExpr=*self->{stmt_name} = $value",
+            ])
+
+        if stmt_type.endswith("]"):
+            if "/RW" in decl and not stmt_type.endswith("[]"):
+                decl.remove("/RW")
+
+                decl.extend([
+                    "/R",
+                    f"/RExpr=std::move(expand_all_extents_t<{stmt_type}>($0))",
+                ])
+
+                if "/C" not in decl:
+                    decl.extend([
+                        "/W",
+                        f"/WType=expand_all_extents_t<{stmt_type}>",
+                        f"/WExpr=std::memcpy(self->{stmt_name}, $value, sizeof(self->{stmt_name}))",
+                    ])
+            else:
+                stmt_type = f"expand_all_extents_t<{stmt_type}>"
+
+        return [stmt_type, stmt_name, stmt_defval, decl]
+
+    def _is_struct_or_union(self, name: str) -> bool:
+        if not name:
+            return False
+
+        if name.startswith("struct ") or name.startswith("union "):
+            return struct_or_union.search(name) is not None
+
+        return name in self.structs or name in self.unions
+
+    def _add_cdef(self, node) -> None:
+        cdef = _fix_func_cdef(self._visit(node))
+        if cdef in self.cdef:
+            return
+
+        if len(self.cdef) != 0 and cdef.startswith("typedef struct "):
+            last_cdef = self.cdef[-1]
+            last_struct_end = last_cdef.rfind("}")
+            struct_end = cdef.rfind("}")
+            if last_struct_end == struct_end and cdef[0:struct_end] == last_cdef[0:last_struct_end]:
+                self.cdef[-1] += "," + cdef[struct_end + 1:]
+                return
+
+        self.cdef.append(cdef)
+
+    def _add_struct_ffi_type(self, stmt_type, decls) -> None:
+        if not decls:
+            return
+
+        for node in decls:
+            self._add_ffi_type(node.type)
+
+        sep = "\n" + " " * 16
+
+        declaration = re.sub(r"^ {12}", "", f"""
+            template<>
+            struct FFITypeTraits<{stmt_type}> : FFITypeTraitsBase<{stmt_type}> {{
+                static ffi_type* ffi_type_ptr();
+
+                FFITypeTraits();
+                ~FFITypeTraits() = default;
+
+                ffi_type struct_type;
+                ffi_type *elements[{len(decls) + 1}];
+            }};
+        """, flags=re.MULTILINE).strip()
+
+        implementation = re.sub(r"^ {12}", "", f"""
+            FFITypeTraits<{stmt_type}>::FFITypeTraits() {{
+                struct_type.size = struct_type.alignment = 0;
+                struct_type.type = FFI_TYPE_STRUCT;
+                struct_type.elements = elements;
+                elements[{len(decls)}] = nullptr;
+
+                {sep.join([f"elements[{i}] = FFITypeTraits<{self._visit(node.type)}>::ffi_type_ptr();" for i, node in enumerate(decls)])}
+            }}
+
+            ffi_type* FFITypeTraits<{stmt_type}>::ffi_type_ptr() {{
+                static FFITypeTraits<{stmt_type}> type_trait;
+                return &type_trait.struct_type;
+            }};
+        """, flags=re.MULTILINE).strip()
+
+        self.structs_ffi_types[stmt_type] = [declaration, implementation]
+
+    def _add_union_ffi_type(self, stmt_type, decls) -> None:
+        if not decls:
+            return
+
+        for node in decls:
+            self._add_ffi_type(node.type)
+
+        sep = "\n" + " " * 16
+
+        declaration = re.sub(r"^ {12}", "", f"""
+            template<>
+            struct FFITypeTraits<{stmt_type}> : FFITypeTraitsBase<{stmt_type}> {{
+                static ffi_type* ffi_type_ptr();
+
+                FFITypeTraits();
+                ~FFITypeTraits() = default;
+
+                ffi_type union_type;
+                ffi_type *elements[2];
+            }};
+        """, flags=re.MULTILINE).strip()
+
+        implementation = re.sub(r"^ {12}", "", f"""
+            FFITypeTraits<{stmt_type}>::FFITypeTraits() {{
+                union_type.size = union_type.alignment = 0;
+                union_type.type = FFI_TYPE_STRUCT;
+                union_type.elements = elements;
+                elements[1] = nullptr;
+
+                {sep.join([f"union_type.size = std::max(union_type.size, FFITypeTraits<{self._visit(node.type)}>::ffi_type_ptr()->size);" for i, node in enumerate(decls)])}
+
+                {sep.join([f"union_type.alignment = std::max(union_type.alignment, FFITypeTraits<{self._visit(node.type)}>::ffi_type_ptr()->alignment);" for i, node in enumerate(decls)])}
+            }}
+
+            ffi_type* FFITypeTraits<{stmt_type}>::ffi_type_ptr() {{
+                static FFITypeTraits<{stmt_type}> type_trait;
+                return &type_trait.union_type;
+            }};
+        """, flags=re.MULTILINE).strip()
+
+        self.structs_ffi_types[stmt_type] = [declaration, implementation]
+
+    def _add_ffi_type(self, node) -> None:
+        if type(node) == c_ast.ArrayDecl:
+            self._add_ffi_type(node.type)
+
+        stmt_type = self._visit(node)
+        stmt_type = _fix_c_type(stmt_type, fix_pointer = False, fix_array = False)
+        stmt_type, _ = _remove_top_most_const_qualifier(stmt_type, remove_all = True)
+
+        # while stmt_type in self.typedefs and stmt_type not in self.structs_ffi_types:
+        #     self.structs_ffi_types[stmt_type] = False
+
+        #     stmt_type = self.typedefs[stmt_type]
+        #     stmt_type = _fix_c_type(stmt_type, fix_pointer = False, fix_array = False)
+        #     stmt_type, _ = _remove_top_most_const_qualifier(stmt_type, remove_all = True)
+
+        if stmt_type == "void" or stmt_type in self.structs_ffi_types and self.structs_ffi_types[stmt_type] != False:
+            return
+
+        decls = None
+
+        if stmt_type in self.structs:
+            if hasattr(self.structs[stmt_type], "decls"):
+                decls = self.structs[stmt_type].decls
+                self._add_struct_ffi_type(stmt_type, decls)
+        elif stmt_type in self.unions:
+            if hasattr(self.unions[stmt_type], "decls"):
+                decls = self.unions[stmt_type].decls
+                self._add_union_ffi_type(stmt_type, decls)
+        elif stmt_type not in self.enums and not stmt_type.endswith("*") and not stmt_type.endswith("[]"):
+            self.structs_ffi_types[stmt_type] = False
+
+def _remove_attributes(c_decl: str) -> str:
+    tokenizer = re.compile(r"\b(?:__declspec|__pragma)[^\S\n]*\(")
+    endpos = len(c_decl)
+    pos = 0
+    lastindex = pos
+    result = []
+
+    while match := tokenizer.search(c_decl, pos):
+        start = match.start()
+
+        if lastindex != start:
+            result.append(c_decl[lastindex:start])
+
+        pos = match.end()
+
+        parenthesis = 1
+
+        while parenthesis != 0 and pos < endpos:
+            if c_decl[pos] == "(":
+                parenthesis += 1
+            elif c_decl[pos] == ")":
+                parenthesis -= 1
+            pos += 1
+
+        lastindex = pos
+
+    if lastindex != endpos:
+        result.append(c_decl[lastindex:])
+
+    return "".join(result)
+
+
+if __name__ == "__main__":
+    filename = "@CDECL_FILE@"
+    with io.open(filename) as f:
+        c_decl = f.read()
+
+        c_decl = f"""#line 1 "<built-in>"
+typedef struct __va_list_tag {{
+    unsigned int gp_offset;
+    unsigned int fp_offset;
+    void *overflow_arg_area;
+    void *reg_save_area;
+}} __va_list_tag;
+typedef __va_list_tag __builtin_va_list;
+typedef _Bool bool;
+#line 1 "{filename}"
+{c_decl}"""
+
+    c_decl = _remove_attributes(c_decl)
+    c_decl = re.sub(r"\b(?:__forceinline)(?:[^\S\n]+|\b)", "inline ", c_decl)
+    c_decl = re.sub(r"\b(?:__cdecl|__stdcall|__restrict|__unaligned)\b", "", c_decl)
+    c_decl = re.sub(r"^#(?:define|undef) .+$", "", c_decl, flags=re.MULTILINE)
+    c_decl = re.sub(r"\\$\r?\n", "", c_decl, flags=re.MULTILINE)
+    c_decl = re.sub(r"\b__int8\b", "char", c_decl)
+    c_decl = re.sub(r"\b__int16\b", "short", c_decl)
+    c_decl = re.sub(r"\b__int32\b", "int", c_decl)
+    c_decl = re.sub(r"\b__int64\b", "long long", c_decl)
+    c_decl = re.sub(r"\b__ptr(?:32|64)\b", "", c_decl)
+    c_decl = re.sub(r"\b(?:__alignof)\b", "sizeof", c_decl)
+    c_decl = c_decl.replace("\x0c", "")
+
+    includes = @CDECL_INCLUDES@
+
+    parser = CHeaderParser()
+    cdecls = parser.generate_declarations(
+        c_decl,
+        filename=filename,
+        includes=includes,
+        include_names=["_al_tagbstring", "_GPU_DEVICE", "HWND__"],
+        exclude_names=["ALLEGRO_OGL_EXT_API"]
+    )
+    print(json.dumps(cdecls, indent=4))

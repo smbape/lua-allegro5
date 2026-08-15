@@ -1,0 +1,13 @@
+~$*
+.idea
+.venv
+.vs
+/*.rock
+/*.rockspec
+/*.sublime-workspace
+generated
+/build.luarocks
+/generator/c_parser/c_protos.h
+/generator/c_parser/cdecl_allegro5.py
+/node_modules
+/out

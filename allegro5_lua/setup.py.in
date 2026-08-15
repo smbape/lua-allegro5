@@ -1,0 +1,9 @@
+from setuptools import setup, Extension, find_packages
+
+setup(
+    name='@TARGET_NAME@',
+    version = '@PROJECT_VERSION@',
+    packages = ['@TARGET_NAME@'],
+    package_dir = {'@TARGET_NAME@': '@PACKAGE_DIR@'},
+    package_data = {'@TARGET_NAME@': @PACKAGE_DATA@},
+)

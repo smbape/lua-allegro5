@@ -1,0 +1,24 @@
+{
+  "dependencies": [
+    {
+      "name": "alsa",
+      "platform" : "linux"
+    },
+    "bzip2",
+    "freeimage",
+    "freetype",
+    "harfbuzz",
+    "libflac",
+    "libjpeg-turbo",
+    "libpng",
+    "libtheora",
+    "libvorbis",
+    "libwebp",
+    "minimp3",
+    "openal-soft",
+    "opus",
+    "opusfile",
+    "physfs",
+    "zlib"
+  ]
+}

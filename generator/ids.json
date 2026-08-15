@@ -1,0 +1,578 @@
+{
+    "allegro5": {
+        "iid": "a2f7651e-8330-440b-8be1-88164d6e924f",
+        "clsid": "90a37f74-4b36-4fdd-a283-3bb5d0985de4"
+    },
+    "fs_utils": {
+        "iid": "61e53206-3116-40d4-8b37-9b6386dd4453",
+        "clsid": "55ae2410-053c-4575-868a-2fb5f23e7e8f"
+    },
+    "fs_utils::FindFilesKind": {
+        "iid": "6d413296-035a-4673-a9db-8e74416adb6e",
+        "clsid": "a7a8c9a3-554f-4ccd-ad16-05310bb61543"
+    },
+    "": {
+        "iid": "78437e84-eb24-41fd-8cca-d54975754548",
+        "clsid": "496134a5-8aad-401b-9ffe-7e88d7e16c47"
+    },
+    "ALLEGRO_TIMEOUT": {
+        "iid": "8d6dad1d-9e25-4759-82f1-c37311a3f76b",
+        "clsid": "3f6bb5b3-8a98-489d-ab1f-db1037a2843f"
+    },
+    "ALLEGRO_COLOR": {
+        "iid": "0ef00566-592d-4e6e-ac38-dbd82aa879f6",
+        "clsid": "034092b0-f503-4891-86e9-985fc74dcfe3"
+    },
+    "_al_tagbstring": {
+        "iid": "2da5f331-5a55-4410-8dfa-0ce20d20bc8f",
+        "clsid": "8c1d2d99-e03b-4993-b85c-ecb1d662bf13"
+    },
+    "ALLEGRO_FILE_INTERFACE": {
+        "iid": "3c39fe3f-970a-4b57-b8b3-f11bfd318d6c",
+        "clsid": "26e445b8-b2ce-486f-9a71-09a2f47d69bf"
+    },
+    "ALLEGRO_LOCKED_REGION": {
+        "iid": "a009fcaf-504c-4ebc-943c-65b488fd502d",
+        "clsid": "572e853e-5e23-4c60-8df9-ff44c626b281"
+    },
+    "ALLEGRO_EVENT_SOURCE": {
+        "iid": "b1451bea-c30b-4c30-80d5-a7c50bf3cf0b",
+        "clsid": "78419e7b-2ada-48da-8ee4-9e187e6993b1"
+    },
+    "ALLEGRO_ANY_EVENT": {
+        "iid": "0ee78bc1-7b83-4a77-bdf9-6b39ed34b82c",
+        "clsid": "cd359040-7f57-40a5-9f8c-a021fa98aa35"
+    },
+    "ALLEGRO_DISPLAY_EVENT": {
+        "iid": "378d66c5-8365-4606-b69f-20812f06d6fc",
+        "clsid": "add2357a-d5a6-425a-b575-57b440e0467f"
+    },
+    "ALLEGRO_JOYSTICK_EVENT": {
+        "iid": "8d2699b8-2d9b-438f-bc8d-364e40266f59",
+        "clsid": "e184b4c9-63e6-44ed-b6af-eca3ecb20373"
+    },
+    "ALLEGRO_KEYBOARD_EVENT": {
+        "iid": "c97184ab-c9e8-4ebe-9fd8-2fce9ad34774",
+        "clsid": "75a8adc7-b504-4c07-abb2-e1d2cc7a9ee9"
+    },
+    "ALLEGRO_MOUSE_EVENT": {
+        "iid": "6a2a7d24-c320-4328-9ae4-ccbf77ee17a1",
+        "clsid": "0f4990e1-7b5d-4622-a8ae-44afbc871094"
+    },
+    "ALLEGRO_TIMER_EVENT": {
+        "iid": "fbee34dd-ae8d-402d-bcbb-becbc1492d78",
+        "clsid": "04d752ac-e165-42f4-93cd-eb5f1805e218"
+    },
+    "ALLEGRO_TOUCH_EVENT": {
+        "iid": "07e1262a-1fd0-4339-80f9-5e34a1203d23",
+        "clsid": "3b5ebc24-cc59-4581-b45c-24977352bf44"
+    },
+    "ALLEGRO_USER_EVENT": {
+        "iid": "c32c031f-5d80-489a-82c2-6201212bd0d0",
+        "clsid": "987d493a-06d9-483d-b687-d6d63f263995"
+    },
+    "ALLEGRO_DROP_EVENT": {
+        "iid": "74c57755-91f0-4bcc-872c-03fa9539d5b3",
+        "clsid": "f850879b-a15d-403e-99b1-56b148bc7154"
+    },
+    "ALLEGRO_EVENT": {
+        "iid": "5d8aac63-5043-4555-af49-92a8f85d2f7a",
+        "clsid": "73c9ed97-e935-466f-8e1f-f4630597b039"
+    },
+    "ALLEGRO_FS_ENTRY": {
+        "iid": "3fd8e164-69f3-4036-b5f0-928c4db8bbdb",
+        "clsid": "961c4789-2c50-4bf1-b415-8d683699d1ea"
+    },
+    "ALLEGRO_FS_INTERFACE": {
+        "iid": "0dfd88fc-a620-48af-bc84-fd4fe13e8fd4",
+        "clsid": "1a96041a-cb3a-453a-b678-8c2387e7f046"
+    },
+    "ALLEGRO_DISPLAY_MODE": {
+        "iid": "83bc486f-99a7-4104-8d6d-eff0c6564a42",
+        "clsid": "02a49a30-3398-4a61-ad25-0bf2ecc0672d"
+    },
+    "unanmed_type_30": {
+        "iid": "02be6b64-4804-4a79-83d7-7ddcfd0e516d",
+        "clsid": "62c5be6d-0d07-4c96-8f61-a11b1dc563ba"
+    },
+    "ALLEGRO_JOYSTICK_STATE": {
+        "iid": "15497d05-ebb8-4aaa-ac1f-30865999d671",
+        "clsid": "c2a47714-c183-4517-9f0f-a8eb890d8cbf"
+    },
+    "ALLEGRO_JOYSTICK_GUID": {
+        "iid": "1cb1d16f-1345-4c25-8a9e-4f0d7802b420",
+        "clsid": "0720214b-72fb-4d27-8a6f-81876bcb645b"
+    },
+    "ALLEGRO_KEYBOARD_STATE": {
+        "iid": "42ca42b4-12bf-4960-bcda-5fca1210d657",
+        "clsid": "fd46dbbe-7fb5-42d7-84a1-6b6083222b08"
+    },
+    "ALLEGRO_MOUSE_STATE": {
+        "iid": "bf21123a-4786-4a6f-8007-f4e5f4216747",
+        "clsid": "c49e61f1-9d57-47b4-a093-3e1633fb99b5"
+    },
+    "ALLEGRO_TOUCH_STATE": {
+        "iid": "60b7c3ef-e235-441a-8433-012f0ed4f412",
+        "clsid": "a83ed093-5363-4529-894b-4131b557726a"
+    },
+    "ALLEGRO_TOUCH_INPUT_STATE": {
+        "iid": "c9fcca53-48ae-412a-b54d-95d62c361c40",
+        "clsid": "54cfb91f-db18-4165-adba-0fef4c6894ff"
+    },
+    "ALLEGRO_HAPTIC_DIRECTION": {
+        "iid": "eb5f2737-a27a-4f8e-91c9-1944750dcd63",
+        "clsid": "dc0c4f2a-48f8-4423-a5d9-6903373065ec"
+    },
+    "ALLEGRO_HAPTIC_REPLAY": {
+        "iid": "e0aeb8da-7323-4ab0-a30b-97947df56292",
+        "clsid": "80590885-9427-450a-a754-39344b13d181"
+    },
+    "ALLEGRO_HAPTIC_ENVELOPE": {
+        "iid": "47aaf18b-3868-4483-8cba-e0c260bde356",
+        "clsid": "9ee7e6af-e845-41b5-94b3-3d2fbce34dfb"
+    },
+    "ALLEGRO_HAPTIC_CONSTANT_EFFECT": {
+        "iid": "5adb8df7-227d-4887-926a-314d7899899d",
+        "clsid": "e718cf61-9137-4f25-8c42-c5e76408ecb0"
+    },
+    "ALLEGRO_HAPTIC_RAMP_EFFECT": {
+        "iid": "5e05c0b2-8ce7-4a58-8ce0-fa2e691f35d2",
+        "clsid": "a9b9b36b-9a84-4114-acdd-99e382684c7c"
+    },
+    "ALLEGRO_HAPTIC_CONDITION_EFFECT": {
+        "iid": "bea2218d-255f-40f8-8b30-c6e7a9aeae22",
+        "clsid": "cfab9501-01ea-4c64-ba7b-3547c7f5c106"
+    },
+    "ALLEGRO_HAPTIC_PERIODIC_EFFECT": {
+        "iid": "97826dea-4528-42b1-90a0-b2bc7502f15d",
+        "clsid": "c678f385-955f-43b3-b708-3dadc15423e9"
+    },
+    "ALLEGRO_HAPTIC_RUMBLE_EFFECT": {
+        "iid": "d5d29cc0-18c2-4335-a0ed-d2a23f6520ab",
+        "clsid": "8ac6f4ac-3c0f-4b27-b5d7-8f688cdaf602"
+    },
+    "ALLEGRO_HAPTIC_EFFECT_UNION": {
+        "iid": "da19673d-82c5-4608-a42e-0b625f7c398b",
+        "clsid": "ae3c9d57-c082-4670-9e8d-395a3c54cfba"
+    },
+    "ALLEGRO_HAPTIC_EFFECT": {
+        "iid": "e1fba2e4-ade2-48cb-8216-02954d26badc",
+        "clsid": "65396708-2752-4e7d-b7ac-07a060cb6f52"
+    },
+    "ALLEGRO_HAPTIC_EFFECT_ID": {
+        "iid": "23749794-cd08-4386-84bf-0e71071dcae2",
+        "clsid": "69249e66-c07e-4b7c-83a6-76937bc5d669"
+    },
+    "ALLEGRO_MEMORY_INTERFACE": {
+        "iid": "bf93f8e5-ecfa-495e-a06b-6ab138437fec",
+        "clsid": "39951f74-f783-4895-967b-fa49191fe881"
+    },
+    "ALLEGRO_MONITOR_INFO": {
+        "iid": "40b50a3b-4f04-414f-8b13-feafc8baffbd",
+        "clsid": "8308b9eb-0a1b-4340-85ef-3d495c86a1f5"
+    },
+    "ALLEGRO_TRANSFORM": {
+        "iid": "0807f569-20c6-481c-b9c0-dfc5c8528a9b",
+        "clsid": "377ceb6d-fcdf-4245-8545-4c32739be576"
+    },
+    "ALLEGRO_STATE": {
+        "iid": "07e4b9c3-7ffc-4cb0-a3f8-d02d25c69dca",
+        "clsid": "9c9f2531-97f1-40f2-b576-7acbdc050f57"
+    },
+    "tagRECT": {
+        "iid": "1b17d59a-f0f4-4731-bec7-ff741a690325",
+        "clsid": "6caf8d91-c6de-4301-bbb8-b272b37b44ae"
+    },
+    "_GPU_DEVICE": {
+        "iid": "f4ce0fe6-f734-4fde-9834-bfcfd27fe953",
+        "clsid": "28b9959b-7e28-462a-86cb-29c72ca32fa2"
+    },
+    "ALLEGRO_OGL_EXT_LIST": {
+        "iid": "46d187ed-f696-4234-a44c-25fa8c299c06",
+        "clsid": "cedd772b-5340-4356-b60d-c03c2c1fc31b"
+    },
+    "ALLEGRO_AUDIO_RECORDER_EVENT": {
+        "iid": "02124b7b-7d14-40c6-a39b-1a2b9f413347",
+        "clsid": "0180817d-100a-4ffc-a3f9-085ca26e41be"
+    },
+    "ALLEGRO_SAMPLE_ID": {
+        "iid": "7b60332d-186a-4a07-b57b-bddcd9c94527",
+        "clsid": "e5b0babd-e891-4c5b-9988-072f56ba06c7"
+    },
+    "ALLEGRO_GLYPH": {
+        "iid": "47f6a0d8-9c54-44f1-8795-46e7cbf9ff79",
+        "clsid": "49b53a9e-abe9-44ed-ab75-92819d3df043"
+    },
+    "ALLEGRO_VERTEX_ELEMENT": {
+        "iid": "ac5bdc52-a2b3-4579-b29e-ba1f0643c43e",
+        "clsid": "2d213b6a-96ec-4109-9dda-2cc0b491602e"
+    },
+    "ALLEGRO_VERTEX": {
+        "iid": "b1b6abef-bd9c-4f9a-ad61-fe959d0d5a6e",
+        "clsid": "7ab2d84f-7e81-4677-80b1-f01665338c3d"
+    },
+    "ALLEGRO_MENU_INFO": {
+        "iid": "904f995f-a29e-4359-bc99-fc794bea40c7",
+        "clsid": "994fccab-02e1-4fed-a572-020e69b4de18"
+    },
+    "ALLEGRO_BITMAP": {
+        "iid": "290f98a7-4c3a-4711-bfee-a26b0817f220",
+        "clsid": "7eeba4f7-d958-4d0e-83cd-323e346c9340"
+    },
+    "ALLEGRO_PATH": {
+        "iid": "f8112479-7b3c-4195-91c5-3f9f3a60a9bf",
+        "clsid": "c3e62164-1000-4437-91fc-14a8e7e141ba"
+    },
+    "ALLEGRO_FILE": {
+        "iid": "5b49029a-54ee-4b5a-9b64-91170133cb31",
+        "clsid": "05b2a5c6-d8d6-4e3f-81cf-676d11aca0b8"
+    },
+    "ALLEGRO_EVENT_QUEUE": {
+        "iid": "967692ec-ecd9-492c-b365-ddfa0074a785",
+        "clsid": "cfce70cc-74d0-4242-bea4-6e51959dc200"
+    },
+    "ALLEGRO_DISPLAY": {
+        "iid": "589646ea-308c-41cb-9a77-bf6b49685d96",
+        "clsid": "a481965f-9f55-4b10-aa62-cac9a7e961e2"
+    },
+    "ALLEGRO_CONFIG": {
+        "iid": "a1aa07ed-2ade-41d3-a161-229af16e6e57",
+        "clsid": "f703488d-f62f-40e4-8eb1-a710f17b67c9"
+    },
+    "ALLEGRO_CONFIG_SECTION": {
+        "iid": "41fd16a4-5aa6-40f9-82fd-abb1f005b59f",
+        "clsid": "071ad4b2-e7c1-4251-9620-63577cf95a04"
+    },
+    "ALLEGRO_CONFIG_ENTRY": {
+        "iid": "4caef581-e3c4-4e5f-9b28-3d5a3c7133b6",
+        "clsid": "cb5871cf-7f7e-4a2c-9804-ee22585174c5"
+    },
+    "ALLEGRO_JOYSTICK": {
+        "iid": "25e28c85-8359-47be-b851-0e87fda70db4",
+        "clsid": "c32a5879-bb07-4b00-a92b-3c870cd16e08"
+    },
+    "ALLEGRO_KEYBOARD": {
+        "iid": "2c929657-f1f3-47f9-8f54-c2e034e999c8",
+        "clsid": "15b8cb58-cea0-440e-b8c0-6ae1a811f165"
+    },
+    "ALLEGRO_MOUSE": {
+        "iid": "09b57c57-74f5-4b02-8510-a118fd5974de",
+        "clsid": "eade2076-0ee2-4436-bd0a-aea80b4fb90a"
+    },
+    "ALLEGRO_TOUCH_INPUT": {
+        "iid": "018ec591-87e8-4d7b-894b-f6ca115e66a2",
+        "clsid": "ccdbe9f7-abbd-4e28-b0ce-751cb27bbaa0"
+    },
+    "ALLEGRO_HAPTIC": {
+        "iid": "7d7a9f91-7f23-4719-9818-15f13adedc43",
+        "clsid": "e5b29388-7fa1-414e-9e59-dc93e79dc789"
+    },
+    "ALLEGRO_MOUSE_CURSOR": {
+        "iid": "73e899b5-9a00-4e9a-95f7-54399067e56d",
+        "clsid": "30b49f46-1787-42f5-aed4-4e276e82f4c6"
+    },
+    "ALLEGRO_SHADER": {
+        "iid": "d7786e76-661f-4c31-999f-b6c3b4ee76a0",
+        "clsid": "73941752-8327-4b12-89e1-47265f51e281"
+    },
+    "ALLEGRO_SYSTEM": {
+        "iid": "97ceb823-bdad-4171-9b92-9bbcb05fc923",
+        "clsid": "fd04df16-a312-45a1-b8bd-b881a2e38e54"
+    },
+    "ALLEGRO_THREAD": {
+        "iid": "3af7f682-4254-4a7a-abda-af01218f5520",
+        "clsid": "c3841725-6019-4c92-9071-6a470359b54b"
+    },
+    "ALLEGRO_MUTEX": {
+        "iid": "1764083f-e3b0-4f78-ae6e-9e6a8a1f4438",
+        "clsid": "089589f2-7944-4526-bc49-f30a9b77580b"
+    },
+    "ALLEGRO_COND": {
+        "iid": "592f89ce-7110-42f7-b205-6c1d23249041",
+        "clsid": "7086e506-7058-4d00-89f3-0da73ec4d9c6"
+    },
+    "ALLEGRO_TIMER": {
+        "iid": "d48efd06-3c03-4988-80ef-0fcd3e685af6",
+        "clsid": "f78bd58a-50ac-42db-871b-2864fe48ad8e"
+    },
+    "ALLEGRO_SAMPLE": {
+        "iid": "dc5118cc-3845-4201-8ad1-035038ba2bfa",
+        "clsid": "46eaa578-d988-495c-9376-d994b83f8838"
+    },
+    "ALLEGRO_SAMPLE_INSTANCE": {
+        "iid": "90dc8099-b5fa-4f62-b51a-4927838c86d0",
+        "clsid": "428a9338-18d3-4607-b0bf-c458bb8050ea"
+    },
+    "ALLEGRO_AUDIO_STREAM": {
+        "iid": "f4b4c690-6965-4231-8630-183a2b25f48e",
+        "clsid": "7eced86f-a409-4cce-a6f2-e2a4b7e2531a"
+    },
+    "ALLEGRO_MIXER": {
+        "iid": "6e0c2c5e-92b2-4869-91cd-4115429f826d",
+        "clsid": "136f6f9b-0781-4fc4-ace3-c1fef8b5a78d"
+    },
+    "ALLEGRO_VOICE": {
+        "iid": "954e0808-c4dd-48a1-8be6-aa84c4cc18b7",
+        "clsid": "aa5f5907-9eb2-4bd3-a5af-e1c4de57ccb7"
+    },
+    "ALLEGRO_AUDIO_DEVICE": {
+        "iid": "b849117e-23db-4fb8-b0b2-8afd70ffd02e",
+        "clsid": "d26471ea-6698-4af1-ac9f-4b801aefc6fe"
+    },
+    "ALLEGRO_AUDIO_RECORDER": {
+        "iid": "20ea8b52-28e5-4a30-95cf-ff75af76249b",
+        "clsid": "decfa5fc-a666-4eec-9b69-bac47b9508e2"
+    },
+    "ALLEGRO_FONT": {
+        "iid": "32e65544-e04e-4049-b030-ed8f71e3312d",
+        "clsid": "226415fb-6bbd-4cc9-a52b-79a71624decb"
+    },
+    "ALLEGRO_VERTEX_DECL": {
+        "iid": "8f8d7246-6e05-47ee-9e6c-1dd2d2394f31",
+        "clsid": "167ac3d0-7ee9-4fea-afbd-a7617c4c17b3"
+    },
+    "ALLEGRO_VERTEX_BUFFER": {
+        "iid": "44a9d2b6-cca6-4a51-ae5e-f0f7cf5beebd",
+        "clsid": "33e60ed6-af1e-419f-9ac2-eb01c0d78cd8"
+    },
+    "ALLEGRO_INDEX_BUFFER": {
+        "iid": "db57a6ba-31ec-47f0-8a1f-dd83348afc3e",
+        "clsid": "d0fe0a9b-0651-4356-a13a-2da3b924bc36"
+    },
+    "ALLEGRO_FILECHOOSER": {
+        "iid": "154c4c27-75f1-41fb-9b3b-95d6e3fa2350",
+        "clsid": "5478a78d-44be-40de-8d72-df6f35428e2b"
+    },
+    "ALLEGRO_TEXTLOG": {
+        "iid": "bbc94a0e-45c2-4c2c-998f-aa47db7bef5a",
+        "clsid": "42335e98-8be1-402f-be51-8dfb68761d73"
+    },
+    "ALLEGRO_MENU": {
+        "iid": "693a8957-7447-4e14-b550-bd8e3561ff67",
+        "clsid": "da719454-0668-4040-8f0d-e4aec7b212f9"
+    },
+    "ALLEGRO_VIDEO": {
+        "iid": "c08d4dbe-457f-4845-81f6-d643d6658e99",
+        "clsid": "e7bd72b2-3730-4bb2-b759-5315769ef8aa"
+    },
+    "this": {
+        "iid": "edd6ad2c-b605-45f1-ad81-93ec86f8dc90",
+        "clsid": "bd93c0c3-40a3-45a4-b907-7586534749f2"
+    },
+    "tm": {
+        "iid": "202b20f5-a8bc-4d32-8e25-b40f92b1cc45",
+        "clsid": "ef219c65-fbd8-42fc-a17d-48222a86a08a"
+    },
+    "timespec": {
+        "iid": "4c5cff3e-d02a-43ee-9ed7-4f1a6ce35282",
+        "clsid": "05dfb9f1-694c-41c7-9e58-269801a68d75"
+    },
+    "C": {
+        "iid": "366963a2-3438-4879-bbf9-908e9ec25309",
+        "clsid": "2d18f7f0-bdb4-4492-9042-4b6a951c4f10"
+    },
+    "std": {
+        "iid": "42403c0c-44fa-4f32-ba49-4d2353670e11",
+        "clsid": "c7b5fd3a-151b-42db-bd40-28b9f5da85da"
+    },
+    "ALLEGRO_USER_EVENT_DESCRIPTOR": {
+        "iid": "484b84f7-6124-4a41-851e-f152788ce67b",
+        "clsid": "0082839f-ae7e-4177-94d5-0f0fc56cf13b"
+    },
+    "VectorOfUchar": {
+        "iid": "e73ad66c-9f22-46fd-b829-1ea1deca05a5",
+        "clsid": "7ff5f477-6320-4de3-95d6-74ce2ca3574c"
+    },
+    "VectorOfChar": {
+        "iid": "8f3475c1-169a-41a1-bb7f-5506ea10c833",
+        "clsid": "15b74b91-81d0-43b6-9246-b8ea4aef3e27"
+    },
+    "VectorOfUshort": {
+        "iid": "d79b1d84-5f66-4388-a2de-f400ea75860c",
+        "clsid": "f3a39b25-ae3a-483d-9bef-7229b695a352"
+    },
+    "VectorOfShort": {
+        "iid": "e27da933-aae5-401e-a3ad-8364a222d4cb",
+        "clsid": "56029dbc-0f5f-4956-90dd-85280621a5b5"
+    },
+    "VectorOfUint": {
+        "iid": "218d2429-1cb7-4cc1-b0ae-566035eef847",
+        "clsid": "059697c5-636b-4230-a1c5-6cfac1155a09"
+    },
+    "VectorOfInt": {
+        "iid": "1e262401-7687-43ba-a634-d88a3f333848",
+        "clsid": "5592f2ef-38af-4cec-9849-f13cb0f9049f"
+    },
+    "VectorOfUlong": {
+        "iid": "ccc693c5-8ef1-4ddc-9eb4-7f2bdad0ca51",
+        "clsid": "e56f746f-1992-4de8-b34f-c607b758c67b"
+    },
+    "VectorOfLong": {
+        "iid": "c828d51d-e82e-42ea-9378-0ca02ac44f74",
+        "clsid": "7529b263-cc43-4042-8f8a-146bd93574db"
+    },
+    "VectorOfFloat": {
+        "iid": "042f938a-6b36-48fe-8a5e-9ec3830099cb",
+        "clsid": "c9b1940a-3aab-4997-8524-98c5a1de3191"
+    },
+    "VectorOfDouble": {
+        "iid": "c9e577f0-6e53-4626-a46e-7841b3088ae2",
+        "clsid": "4261cd8c-1674-4956-acc9-f03dac6f80b0"
+    },
+    "VectorOf__int64": {
+        "iid": "9bc9aa88-d8a1-4a13-b9c4-3e32f9476deb",
+        "clsid": "1e5ed141-d4fa-4aa1-9f6c-7d82a724a833"
+    },
+    "VectorOfU__int64": {
+        "iid": "634d2240-0168-4636-8103-54f7ba75e225",
+        "clsid": "1b250ba1-e0e7-466f-9570-b5a0cebdca56"
+    },
+    "VectorOf_al_tagbstring": {
+        "iid": "0ab76ff7-e000-4436-b484-a0beb8f0ed91",
+        "clsid": "acb539f2-dc81-4364-b577-213f63b6350a"
+    },
+    "VectorOfString": {
+        "iid": "422792df-2539-40ec-9a02-cdd32b457a94",
+        "clsid": "6e3eec62-bc6a-4177-9ac2-c33b28f87641"
+    },
+    "VectorOfCharPtr": {
+        "iid": "76a19ffd-4ec9-413f-a704-53445c2c21c9",
+        "clsid": "9b0b7937-21fc-4429-b9a1-457fb42d454c"
+    },
+    "VectorOfALLEGRO_TIMEOUT": {
+        "iid": "e4a5301e-d4a3-4209-b7da-b0eff58372c8",
+        "clsid": "8b6cc0e2-b3b0-4604-aa86-0bb6e3564663"
+    },
+    "VectorOfALLEGRO_FILE_INTERFACE": {
+        "iid": "eebdf6c4-761d-488d-bfb1-8b13f4dd83c3",
+        "clsid": "37dd14d5-e656-4893-902c-5ad25ece3ad2"
+    },
+    "VectorOfALLEGRO_PATHPtr": {
+        "iid": "f75e044a-f528-4903-82aa-afa172b74821",
+        "clsid": "44b47372-98c6-4eb8-80fc-240d564d324f"
+    },
+    "VectorOfALLEGRO_LOCKED_REGION": {
+        "iid": "ea6deb72-ace2-4296-9180-9e552d7f1aeb",
+        "clsid": "046f7a22-f31e-43aa-bc36-98dd65f0ba92"
+    },
+    "VectorOfALLEGRO_EVENT_SOURCE": {
+        "iid": "a6bc69ae-73d8-40c6-b792-eef639487b7b",
+        "clsid": "7b4e8c87-453f-4a17-947c-795c132bfb97"
+    },
+    "VectorOfALLEGRO_EVENT": {
+        "iid": "542bdb3d-74a3-4aa1-835e-e8d1d5fdf4fc",
+        "clsid": "7e44992f-f445-4310-999e-fb1bdbc9efc0"
+    },
+    "VectorOfALLEGRO_USER_EVENT": {
+        "iid": "f48f0d72-39bc-4a00-9ecb-5a835fb91e02",
+        "clsid": "a0007a13-4a1a-4d41-bdca-0c5def8c5a99"
+    },
+    "VectorOfALLEGRO_BITMAPPtr": {
+        "iid": "9e78441c-e6d3-48a6-a2e7-9d38b1ce362e",
+        "clsid": "80aadb4e-7ca1-43c3-8d30-100c2173544b"
+    },
+    "VectorOfALLEGRO_CONFIG_SECTIONPtr": {
+        "iid": "1f224e4a-f766-43f2-b369-79ebd95cd523",
+        "clsid": "73828bf7-d185-4e05-bc55-054745a50a4f"
+    },
+    "VectorOfALLEGRO_CONFIG_ENTRYPtr": {
+        "iid": "1f71843e-37a3-403a-8cdd-aa70033e6d3e",
+        "clsid": "853fe248-d4ac-4706-9b26-0e79bd01a8d3"
+    },
+    "VectorOfALLEGRO_FS_ENTRY": {
+        "iid": "3b57a8ae-dc41-4448-af70-3075dc105b9b",
+        "clsid": "b65fc719-50ea-4a1d-8828-29f0579eb755"
+    },
+    "VectorOfALLEGRO_FS_INTERFACE": {
+        "iid": "c7765c8a-c793-4b1d-8d79-51b07e0b40f0",
+        "clsid": "82a5604f-7ea5-4d7c-8ba2-f75ef11282d5"
+    },
+    "VectorOfALLEGRO_DISPLAY_MODE": {
+        "iid": "fc924494-88e3-4974-ab5f-3ecdd7cd9c5a",
+        "clsid": "fc6801fc-b606-4900-8620-fd482bbf0d6a"
+    },
+    "VectorOfALLEGRO_JOYSTICK_STATE": {
+        "iid": "e18ccb32-0d62-49a7-8342-28ce8fc91fe7",
+        "clsid": "c3617f56-fbd7-4963-9874-79540bdc5b8a"
+    },
+    "VectorOfALLEGRO_KEYBOARD_STATE": {
+        "iid": "8f31f505-c408-4c92-a556-51cb319832a3",
+        "clsid": "866b7205-c33c-4a2a-b989-88a9bea7f300"
+    },
+    "VectorOfALLEGRO_MOUSE_STATE": {
+        "iid": "aa92013e-6d95-495a-89e3-73bea3fb08a8",
+        "clsid": "08760e69-0bec-4642-8642-3bed0015c55c"
+    },
+    "VectorOfALLEGRO_TOUCH_INPUT_STATE": {
+        "iid": "2ae25641-f0ab-4b0d-96ac-e90be2476609",
+        "clsid": "e03929e3-e5ce-41f2-9a4c-2122117c262e"
+    },
+    "VectorOfALLEGRO_HAPTIC_EFFECT": {
+        "iid": "54266800-d424-42f9-8059-dc512a35cccd",
+        "clsid": "1284ea10-68f0-4dd4-86dd-5785bca3b3bd"
+    },
+    "VectorOfALLEGRO_HAPTIC_EFFECT_ID": {
+        "iid": "081e7f52-fe24-4539-bc68-d87eeb393773",
+        "clsid": "8370b921-abdd-4603-b854-c89d1ac0afd2"
+    },
+    "VectorOfALLEGRO_MEMORY_INTERFACE": {
+        "iid": "42d5c45e-3b30-43a4-9c64-6a4b172e7a57",
+        "clsid": "ef915da5-56d7-4496-b58d-2d3def2176ab"
+    },
+    "VectorOfALLEGRO_MONITOR_INFO": {
+        "iid": "0225aeb1-6530-41b5-a53f-90ea9a3f10ee",
+        "clsid": "acf3bf47-902b-4eb8-824c-c1ae067229b4"
+    },
+    "VectorOfALLEGRO_TRANSFORM": {
+        "iid": "96aab4cc-e6f9-4ed8-9023-51972aad309f",
+        "clsid": "dbd558ca-1470-40ff-9510-5691546c3bda"
+    },
+    "VectorOfVoidPtr": {
+        "iid": "d935b0a8-fb54-44ef-89c5-5aea20c8ae4f",
+        "clsid": "4d44266b-68bb-4efd-8cf6-6eb03b97f33b"
+    },
+    "VectorOfALLEGRO_STATE": {
+        "iid": "5ea65c7e-cd94-4d95-b002-09a79ebdbd30",
+        "clsid": "a777f9f7-459e-47d6-b04b-a1ec6ec6894b"
+    },
+    "VectorOfALLEGRO_OGL_EXT_LIST": {
+        "iid": "5ceb4838-4f1a-4eb6-94d3-dfd23c554b97",
+        "clsid": "c55871aa-8503-4479-a0ca-e35db852cec9"
+    },
+    "VectorOfALLEGRO_SAMPLE_ID": {
+        "iid": "dda58d9a-0cb0-460d-b6cc-138b84495e4e",
+        "clsid": "4d0c45d7-9ca4-4613-8554-27c82e6749a1"
+    },
+    "VectorOfALLEGRO_AUDIO_RECORDER_EVENT": {
+        "iid": "1fdb60c2-06c1-4928-ae94-704a45b41279",
+        "clsid": "2c9f63a3-8e37-4b64-9584-11a2163794e5"
+    },
+    "VectorOfALLEGRO_GLYPH": {
+        "iid": "7c94ecdb-f5c9-420d-b3d0-9f74711ba1c9",
+        "clsid": "3a149c0a-c66d-453a-9f06-61e00188e772"
+    },
+    "VectorOfALLEGRO_VERTEX_ELEMENT": {
+        "iid": "114f0c14-3a83-46c4-b0bc-1057635db37a",
+        "clsid": "6df1335e-b1a5-487a-a06a-9078eebe8d62"
+    },
+    "VectorOfALLEGRO_VERTEX": {
+        "iid": "fca5dd85-d57f-476e-8d00-4645cb0ff623",
+        "clsid": "b479233c-74f7-47e5-bf3f-b355c4d5a928"
+    },
+    "VectorOfALLEGRO_MENU_INFO": {
+        "iid": "17b6bd50-ea83-40ea-b56a-2e85617e8042",
+        "clsid": "cbaccc5f-d41d-4e43-b1f9-a0f9d553ef2c"
+    },
+    "VectorOfALLEGRO_MENUPtr": {
+        "iid": "8b65560d-c4dc-423f-88e1-35ab1fa233c2",
+        "clsid": "401c4a18-7465-46b8-b950-da36d7ebdf52"
+    },
+    "VectorOfTimespec": {
+        "iid": "16b530fd-54ff-42fc-9aad-68e8662649e9",
+        "clsid": "124a852b-fa6c-4a90-aa06-c9f75c758c66"
+    },
+    "VectorOfTm": {
+        "iid": "d8d0f709-e87c-46e4-8747-8dd7e463ccd2",
+        "clsid": "b285c26f-fa76-43e4-976f-a60e388194d3"
+    }
+}
