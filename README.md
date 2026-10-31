@@ -259,7 +259,7 @@ main()
 #### Windows
 
 ```cmd
-git clone --depth 1 --branch v0.0.1 https://github.com/smbape/lua-allegro5.git
+git clone --depth 1 --branch v5.2.11-2 https://github.com/smbape/lua-allegro5.git
 cd lua-allegro5
 @REM build.bat "-DLua_VERSION=luajit-2.1" --target luajit --install
 @REM available versions are 5.1, 5.2, 5.3, 5.4, 5.5
@@ -275,7 +275,7 @@ node scripts\test.js --Release
 #### Linux
 
 ```sh
-git clone --depth 1 --branch v0.0.1 https://github.com/smbape/lua-allegro5.git
+git clone --depth 1 --branch v5.2.11-2 https://github.com/smbape/lua-allegro5.git
 cd lua-allegro5
 # ./build.sh "-DLua_VERSION=luajit-2.1" --target luajit --install
 # available versions are 5.1, 5.2, 5.3, 5.4, 5.5
