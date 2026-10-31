@@ -52,8 +52,8 @@ local function test(bitmap, font, message)
         allegro5.al_set_blender(allegro5.ALLEGRO_ADD, allegro5.ALLEGRO_ONE, allegro5.ALLEGRO_ZERO)
 
         --[[ Clear the backbuffer with red so we can tell if the bitmap does not
-       - cover the entire backbuffer.
-       --]]
+        - cover the entire backbuffer.
+        --]]
         allegro5.al_clear_to_color(allegro5.al_map_rgb(255, 0, 0))
 
         allegro5.al_draw_scaled_bitmap(bitmap, 0, 0,
@@ -67,9 +67,9 @@ local function test(bitmap, font, message)
         allegro5.al_set_blender(allegro5.ALLEGRO_ADD, allegro5.ALLEGRO_ONE, allegro5.ALLEGRO_INVERSE_ALPHA)
 
         --[[ Note this makes the memory buffer case much slower due to repeated
-       - locking of the backbuffer.  Officially you can't use al_lock_bitmap
-       - to solve the problem either.
-       --]]
+        - locking of the backbuffer.  Officially you can't use al_lock_bitmap
+        - to solve the problem either.
+        --]]
         print(font, message, 0, 0)
         local second_line = string.format("%.1f FPS", fps)
         print(font, second_line, 0, allegro5.al_get_font_line_height(font) + 5)

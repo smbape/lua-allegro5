@@ -1,27 +1,30 @@
 cmake_minimum_required(VERSION 3.25)
 
+set(VERSION_REG "[0-9]+\\.[0-9]+\\.[0-9]+(-[0-9]+)?")
+
 # ================================================================
-# bit.lua
+# lua files
 # ================================================================
-function(allegro5_write_bit_lua)
+function(embed_lua_file filename)
     set(allegro5_GENERATED_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/generated")
-    file(READ "${CMAKE_SOURCE_DIR}/src/lua/bit.lua" _new_bit_string)
+    file(READ "${CMAKE_SOURCE_DIR}/src/lua/${filename}.lua" _new_${filename}_string)
 
-    set(_new_bit_string "R\"cdata(${_new_bit_string})cdata\"")
-    set(bit_lua_FILE "${allegro5_GENERATED_INCLUDE_DIR}/bit_string.lua.inc")
+    set(_new_${filename}_string "R\"cdata(${_new_${filename}_string})cdata\"")
+    set(${filename}_lua_FILE "${allegro5_GENERATED_INCLUDE_DIR}/${filename}_string.lua.inc")
 
-    if(EXISTS "${bit_lua_FILE}")
-        file(READ "${bit_lua_FILE}" _old_bit_string)
+    if(EXISTS "${${filename}_lua_FILE}")
+        file(READ "${${filename}_lua_FILE}" _old_${filename}_string)
     else()
-        set(_old_bit_string "")
+        set(_old_${filename}_string "")
     endif()
 
-    if(NOT (_old_bit_string STREQUAL _new_bit_string))
-        file(WRITE "${bit_lua_FILE}" "${_new_bit_string}")
+    if(NOT (_old_${filename}_string STREQUAL _new_${filename}_string))
+        file(WRITE "${${filename}_lua_FILE}" "${_new_${filename}_string}")
     endif()
 endfunction()
 
-allegro5_write_bit_lua()
+embed_lua_file("bit")
+embed_lua_file("cdata_utils")
 # ================================================================
 
 # ===============
@@ -50,11 +53,11 @@ file(GLOB_RECURSE files_to_change
 )
 
 foreach(item IN LISTS files_to_change)
-    vcpkg_regex_replace_string("${item}" "(/lua-allegro5/releases/download/v|/lua-allegro5/tree/v)[0-9]+(\\.[0-9]+)+" "\\1${PROJECT_VERSION}")
+    vcpkg_regex_replace_string("${item}" "(/lua-allegro5/releases/download/v|/lua-allegro5/tree/v)${VERSION_REG}" "\\1${PROJECT_VERSION}")
     vcpkg_regex_replace_string("${item}" "(allegro5-|/liballeg/allegro5/blob/|/a5docs/|ALLEGRO5_VERSION:-|${target_name} )[0-9]+(\\.[0-9]+)+" "\\1${Allegro5_VERSION}")
     vcpkg_regex_replace_string("${item}" "ALLEGRO5_VERSION = \"[0-9]+(\\.[0-9]+)+\"" "ALLEGRO5_VERSION = \"${Allegro5_VERSION}\"")
     vcpkg_regex_replace_string("${item}" "(--branch )[0-9]+(\\.[0-9]+)+( https://github.com/liballeg/allegro5)" "\\1${Allegro5_VERSION}\\3")
-    vcpkg_regex_replace_string("${item}" "(--branch v)[0-9]+(\\.[0-9]+)+( https://github.com/smbape/lua-allegro5)" "\\1${PROJECT_VERSION}\\3")
+    vcpkg_regex_replace_string("${item}" "(--branch v)${VERSION_REG}( https://github.com/smbape/lua-allegro5)" "\\1${PROJECT_VERSION}\\3")
 endforeach()
 
 # ================================================================
@@ -486,7 +489,10 @@ add_custom_target(${target_name}_precompiled_header DEPENDS ${target_PRECOMPILED
 add_dependencies(${target_name} ${target_name}_precompiled_header)
 # ========================================================================
 
-target_link_libraries(${target_name} PRIVATE ${LUA_LIBRARIES})
+# On Linux it does not link to Lua: the interpreter provides the symbols.
+if (WIN32)
+    target_link_libraries(${target_name} PRIVATE ${LUA_LIBRARIES})
+endif()
 target_include_directories(${target_name} PRIVATE ${LUA_INCLUDE_DIR})
 
 if (DEFINED Allegro5_DEPENDENCIES)
@@ -547,14 +553,6 @@ set_target_properties(${target_name} PROPERTIES
 # Always generate debug files
 if(MSVC AND NOT "${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
     target_link_options(${target_name} PRIVATE "/DEBUG")
-endif()
-
-if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    if (APPLE)
-        target_link_options(${target_name} PRIVATE "-Wl,-undefined,error")
-    else()
-        target_link_options(${target_name} PRIVATE "-Wl,--no-undefined")
-    endif()
 endif()
 
 # /Zc:__cplusplus is required to make __cplusplus accurate
@@ -670,7 +668,11 @@ if (WITH_LUA_ROCKS)
     install(SCRIPT "export_targets_repair.cmake")
 endif()
 
-option(ENABLE_REPAIR "Repair installed library to ease distribution" OFF)
+set(DEFAULT_ENABLE_REPAIR OFF)
+if (WITH_LUA_ROCKS AND WIN32)
+    set(DEFAULT_ENABLE_REPAIR ON)
+endif()
+option(ENABLE_REPAIR "Repair installed library to ease distribution" ${DEFAULT_ENABLE_REPAIR})
 
 if (ENABLE_REPAIR)
     if (WIN32)
@@ -688,7 +690,10 @@ if (ENABLE_REPAIR)
             "${CMAKE_SOURCE_DIR}/src/include"
         )
 
-        target_link_libraries(${target_name}_loader PRIVATE ${LUA_LIBRARIES})
+        # On Linux it does not link to Lua: the interpreter provides the symbols.
+        if (WIN32)
+            target_link_libraries(${target_name}_loader PRIVATE ${LUA_LIBRARIES})
+        endif()
         target_include_directories(${target_name}_loader PRIVATE ${LUA_INCLUDE_DIR})
 
         install(TARGETS ${target_name}_loader

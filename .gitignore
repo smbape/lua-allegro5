@@ -11,3 +11,4 @@ generated
 /generator/c_parser/cdecl_allegro5.py
 /node_modules
 /out
+/samples/data

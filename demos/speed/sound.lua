@@ -237,10 +237,6 @@ ffi.cdef(cdef)
 
 local ThreadInfo = ffi.typeof("ThreadInfo")
 
-local intptr_t = function(cdata)
-    return tonumber(ffi.cast("intptr_t", ffi.cast("void*", cdata)))
-end
-
 local thread_info = ThreadInfo()
 
 local create_sample_u8 = a4_aux.create_sample_u8
@@ -489,7 +485,7 @@ local function init_sound()
     thread_info.ping_timer = ping_timer
 
     local thread_start = lanes.gen("*", sound_update_proc)
-    sound_update_thread = thread_start(intptr_t(thread_info))
+    sound_update_thread = thread_start(allegro5_lua.tolightuserdata(thread_info))
 end
 exports.init_sound = init_sound
 

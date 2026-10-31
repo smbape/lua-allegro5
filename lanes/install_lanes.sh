@@ -57,6 +57,14 @@ function install_lanes() {
     git clone -b v3.17.2 "https://github.com/LuaLanes/lanes.git" "$sourceDir" && \
     cd "$sourceDir" || return $?
 
+    if ! git config user.email &>/dev/null; then
+        git config user.email "you@example.com"
+    fi
+
+    if ! git config user.name &>/dev/null; then
+        git config user.name "Your Name"
+    fi
+
     local BRANCH=3.x
     local SOURCE_DIR="$PWD"
     if command -v cygpath &>/dev/null; then

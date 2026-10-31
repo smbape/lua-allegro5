@@ -74,7 +74,7 @@ endif()
 # audio
 # ================
 option(WANT_ALSA "Enable ALSA digital audio driver (Unix)" on)
-if(WANT_ALSA AND UNIX AND NOT APPLE AND NOT ANDROID)
+if (WANT_ALSA AND UNIX AND NOT APPLE AND NOT ANDROID)
     find_package(ALSA)
 endif()
 

@@ -536,10 +536,6 @@ class Parser {
         }
         const start = this.pos;
 
-        if (start >= 2130) {
-            debugger;
-        }
-
         const declaration = this.maybeStructDeclaration();
         if (declaration) {
             return this.popState(declaration);
@@ -601,7 +597,6 @@ class Parser {
             return this.popState();
         }
 
-        "="
         const equals = this._maybeTokenExpression("=");
         if (!equals) {
             return this.popState();
@@ -3134,7 +3129,6 @@ class Parser {
         if (!this.pushNextPos()) {
             return this.popState();
         }
-        const start = this.pos;
 
         const words = [];
 

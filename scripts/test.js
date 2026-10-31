@@ -11,7 +11,7 @@ const batchSuffix = os.platform() === "win32" ? ".bat" : "";
 const exeSuffix = os.platform() === "win32" ? ".exe" : "";
 const WORKSPACE_ROOT = process.env.WORKSPACE_ROOT ? sysPath.resolve(process.env.WORKSPACE_ROOT) : sysPath.resolve(__dirname, "..");
 const LUAROCKS_BINDIR = process.env.LUAROCKS_BINDIR ? sysPath.resolve(process.env.LUAROCKS_BINDIR) : sysPath.join(WORKSPACE_ROOT, "luarocks");
-const luarcoks = sysPath.join(LUAROCKS_BINDIR, `luarocks${ batchSuffix }`);
+const luarocks = sysPath.join(LUAROCKS_BINDIR, `luarocks${ batchSuffix }`);
 
 const spawnShellSync = (cmd, args, options = {}) => {
     // https://nodejs.org/docs/latest-v18.x/api/child_process.html#spawning-bat-and-cmd-files-on-windows
@@ -25,11 +25,10 @@ const spawnShellSync = (cmd, args, options = {}) => {
     return spawnSync(cmd, args, options);
 };
 
-const lua_interpreter = spawnShellSync(luarcoks, ["config", "lua_interpreter"]).stdout.toString().trim();
-const LUA_BINDIR = spawnShellSync(luarcoks, ["config", "variables.LUA_BINDIR"]).stdout.toString().trim();
-const LUAROCKS_SYSCONFDIR = spawnShellSync(luarcoks, ["config", "sysconfdir"]).stdout.toString().trim();
+const lua_interpreter = spawnShellSync(luarocks, ["config", "lua_interpreter"]).stdout.toString().trim();
+const LUA_BINDIR = spawnShellSync(luarocks, ["config", "variables.LUA_BINDIR"]).stdout.toString().trim();
 const LUA_BINDIR_DEBUG = LUA_BINDIR.replace("Release", "Debug");
-const ABIVER = spawnShellSync(luarcoks, ["config", "lua_version"]).stdout.toString().trim();
+const ABIVER = spawnShellSync(luarocks, ["config", "lua_version"]).stdout.toString().trim();
 const LUA_MODULES = sysPath.join(LUAROCKS_BINDIR, "lua_modules");
 
 const SAMPLES_PATH = sysPath.join(WORKSPACE_ROOT, "samples");
@@ -39,79 +38,40 @@ const PYTHON = sysPath.join(PYTHON_VENV_PATH, os.platform() === "win32" ? "Scrip
 const config = {
     Debug: {
         exe: sysPath.join(LUA_BINDIR_DEBUG, lua_interpreter),
-        env: {
-            LUAROCKS_BINDIR,
-            WORKSPACE_ROOT,
-        },
-        argv: [],
+        argv: ["-l", "setup"],
+        env: {},
     },
     Release: {
         exe: sysPath.join(LUAROCKS_BINDIR, `lua${ batchSuffix }`),
-        env: {
-            LUAROCKS_BINDIR,
-            WORKSPACE_ROOT,
-        },
-        argv: [],
+        argv: ["-l", "setup"],
+        env: {},
     },
 };
 
-if (os.platform() === "win32") {
-    const { APPDATA, PATH } = process.env;
+if (os.platform() !== "win32" && fs.existsSync(config.Debug.exe)) {
+    const LD_LIBRARY_PATH = [];
 
-    config.Release.env.PATH = [
-        sysPath.join(LUAROCKS_BINDIR, "lua_modules", "lib", "lua", ABIVER),
-        sysPath.join(LUAROCKS_BINDIR, "lua_modules", "bin"),
-        sysPath.join(APPDATA, "luarocks", "bin"),
-        PATH,
-    ].join(";");
-    config.Release.env.LUAROCKS_SYSCONFDIR = LUAROCKS_SYSCONFDIR;
+    const { OpenCVLua_DIR } = process.env;
+    if (fs.existsSync(OpenCVLua_DIR)) {
+        const OpenCVLua_LIBDIR = sysPath.resolve(OpenCVLua_DIR, "lib");
+        if (fs.existsSync(OpenCVLua_LIBDIR)) {
+            LD_LIBRARY_PATH.push(OpenCVLua_LIBDIR);
+        }
+    }
 
-    config.Debug.env.PATH = [
-        sysPath.resolve(LUA_BINDIR_DEBUG, "..", "lib"),
-        sysPath.join(LUAROCKS_BINDIR, "lua_modules", "bin"),
-        sysPath.join(APPDATA, "luarocks", "bin"),
-        PATH,
-    ].join(";");
-    config.Debug.env.LUAROCKS_SYSCONFDIR = LUAROCKS_SYSCONFDIR;
+    const { MediapipeLua_DIR } = process.env;
+    if (fs.existsSync(MediapipeLua_DIR)) {
+        const MediapipeLua_LIBDIR = sysPath.resolve(MediapipeLua_DIR, "lib");
+        if (fs.existsSync(MediapipeLua_LIBDIR)) {
+            LD_LIBRARY_PATH.push(MediapipeLua_LIBDIR);
+        }
+    }
 
-    config.Debug.argv = [
-        "-e",
-        [
-            `package.path="${ [
-                `${ sysPath.resolve(LUA_BINDIR_DEBUG, "..", "lua").replaceAll("\\", "/") }/?.lua`,
-                `${ sysPath.resolve(LUA_BINDIR_DEBUG, "..", "lua").replaceAll("\\", "/") }/?/init.lua`,
-                `${ LUA_MODULES }/share/lua/${ ABIVER }/?.lua`,
-                `${ LUA_MODULES }/share/lua/${ ABIVER }/?/init.lua`,
-                `${ APPDATA }/luarocks/share/lua/${ ABIVER }/?.lua`,
-                `${ APPDATA }/luarocks/share/lua/${ ABIVER }/?/init.lua`,
-            ].join(";").replace(/[\\]/g, "/") };"..package.path`,
+    if (process.env.LD_LIBRARY_PATH) {
+        LD_LIBRARY_PATH.push(process.env.LD_LIBRARY_PATH);
+    }
 
-            `package.cpath="${ [
-                `${ sysPath.resolve(LUA_BINDIR_DEBUG, "..", "lib").replaceAll("\\", "/") }/?.dll`,
-                `${ sysPath.resolve(LUA_BINDIR_DEBUG, "..", "lib").replaceAll("\\", "/") }/loadall.dll`,
-                `${ LUA_MODULES }/lib/lua/${ ABIVER }/?.dll`,
-                `${ APPDATA }/luarocks/lib/lua/${ ABIVER }/?.dll`,
-            ].join(";").replace(/[\\]/g, "/") };"..package.cpath`,
-        ].join(";"),
-    ];
-} else if (fs.existsSync(config.Debug.exe)) {
-    config.Debug.argv = [
-        "-e",
-        [
-            `package.path="${ [
-                `${ sysPath.resolve(LUA_BINDIR_DEBUG, "..", "lua") }/?.lua`,
-                `${ sysPath.resolve(LUA_BINDIR_DEBUG, "..", "lua") }/?/init.lua`,
-                `${ LUA_MODULES }/share/lua/${ ABIVER }/?.lua`,
-                `${ LUA_MODULES }/share/lua/${ ABIVER }/?/init.lua`,
-            ].join(";").replace(/[\\]/g, "/") };"..package.path`,
-
-            `package.cpath="${ [
-                `${ sysPath.resolve(LUA_BINDIR_DEBUG, "..", "lib") }/?.so`,
-                `${ sysPath.resolve(LUA_BINDIR_DEBUG, "..", "lib") }/loadall.so`,
-                `${ LUA_MODULES }/lib/lua/${ ABIVER }/?.so`,
-            ].join(";").replace(/[\\]/g, "/") };"..package.cpath`,
-        ].join(";"),
-    ];
+    config.Debug.env.LD_LIBRARY_PATH = LD_LIBRARY_PATH.join(":");
 }
 
 const unixPath = path => {
@@ -162,13 +122,28 @@ const run = (file, env, options, next) => {
 
     if (extname === ".lua") {
         const argv = [...config[env.BUILD_TYPE].argv, file, ...options.argv];
-        if (options.argv.length === 0 && [
-            "ex_config.lua",
-            "ex_file.lua",
-            "ex_path_test.lua",
-            "ex_utf8.lua",
-        ].includes(sysPath.basename(file))) {
-            argv.push("-v", "--output=gtest");
+        if (options.argv.length === 0) {
+            if ([
+                "ex_config.lua",
+                "ex_file.lua",
+                "ex_path_test.lua",
+                "ex_utf8.lua",
+            ].includes(sysPath.basename(file))) {
+                argv.push("-v", "--output=gtest");
+            }
+
+            if ([
+                "ex_prim.lua",
+                "ex_prim_wrap.lua",
+            ].includes(sysPath.basename(file))) {
+                argv.push("--shader");
+            }
+
+            if ([
+                "ex_projection2.lua",
+            ].includes(sysPath.basename(file))) {
+                argv.push("--use-shaders");
+            }
         }
         args.push(config[env.BUILD_TYPE].exe, argv);
     } else if (extname === ".py") {
@@ -180,7 +155,7 @@ const run = (file, env, options, next) => {
     const cmd = [keys.map(key => unixEnv(key, env[key])).join(" "), unixCmd(args.flat())].join(" ");
 
     if (options.bash) {
-        console.log(cmd, "||", "exit $?");
+        console.log(cmd);
         next(null, 0);
         return;
     }
@@ -222,7 +197,49 @@ const run = (file, env, options, next) => {
     }
 };
 
-const bash_init = "#!/usr/bin/env bash\n\nset -o pipefail\n";
+// Source - https://unix.stackexchange.com/questions/799584/bash-exception-handling-with-a-stack-trace-and-cleanup-code-how-to-implement#answer-799585
+// Posted by user3207874.
+// Retrieved 2026-09-12, License - CC BY-SA 4.0
+
+const bash_init = `
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+
+trap 'catch' ERR
+
+catch() {
+    local exit_code=$?
+    local cmd="$BASH_COMMAND"
+    local i
+
+    # Check if exit was due to error
+    if [ $exit_code -ne 0 ]; then
+        echo ""
+        echo "[-] ERROR $exit_code during command: $cmd"
+        echo "Call stack:"
+        for ((i=1; i<\${#FUNCNAME[@]}; i++)); do
+            local func="\${FUNCNAME[$i]}"
+            local src="\${BASH_SOURCE[$i]}"
+            local line="\${BASH_LINENO[$((i - 1))]}"
+
+            # Added to track nested function calls from functions
+            # Extract the actual line of code (skip if file inaccessible)
+            if [[ -r "$src" ]]; then
+                local code_line
+                code_line=$(sed -n "\${line}s/^[[:space:]]*/    /p" "$src")
+                echo "  at $src:$line in function $func:"
+                echo "$code_line"
+            else
+                echo "  at $src:$line in function $func (source not readable)"
+            fi
+        done
+
+        # echo "Tip: You can put any exception handling code here"
+    fi
+}
+
+`.trim();
 
 const runFile = (file, options, cb) => {
     waterfall([
@@ -256,7 +273,9 @@ const main = (options, cb) => {
 
     const { cwd, includes, includes_ext, excludes } = options;
 
-    excludes.push(...["common.lua"]);
+    if (includes.length === 0) {
+        excludes.push(...["common.lua"]);
+    }
 
     if (options.bash) {
         console.log([
@@ -278,14 +297,14 @@ const main = (options, cb) => {
                 "demos/skater/src/skater.lua",
                 "demos/speed/main.lua",
                 "demos/wiki/src/game.lua",
-            ], 1, (folder, i, next) => {
-                explore(sysPath.join(cwd, folder), (path, stats, next) => {
+            ], 1, (directory, i, next) => {
+                explore(sysPath.join(cwd, directory), (path, stats, next) => {
                     const file = sysPath.relative(cwd, path);
                     const basename = sysPath.basename(file);
                     const extname = sysPath.extname(file);
 
                     if (
-                        includes.length === 0 && folder === "examples" && !basename.startsWith("ex_") ||
+                        includes.length === 0 && directory === "examples" && !basename.startsWith("ex_") ||
                         (includes.length === 0 || !includes.some(include => basename.startsWith(include))) && [ "_", "." ].includes(basename[0]) ||
                         !includes_ext.includes(extname) ||
                         excludes.some(exclude => basename.startsWith(exclude)) ||
@@ -299,7 +318,7 @@ const main = (options, cb) => {
                     runFile(file, options, next);
                 }, (path, stats, files, state, next) => {
                     const basename = sysPath.basename(path);
-                    const skip = folder === "." || state === "begin" && (basename[0] === "." || basename === "BackUp");
+                    const skip = state === "begin" && (basename[0] === "." || basename === "BackUp");
                     next(null, skip);
                 }, err => {
                     if (err && err.code === "ENOENT") {

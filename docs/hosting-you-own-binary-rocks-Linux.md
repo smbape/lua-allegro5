@@ -68,8 +68,8 @@ sudo dnf install -y almalinux-release-devel epel-release && \
 sudo dnf install -y https://mirrors.rpmfusion.org/free/el/rpmfusion-free-release-8.noarch.rpm
 sudo dnf install -y https://mirrors.rpmfusion.org/nonfree/el/rpmfusion-nonfree-release-8.noarch.rpm && \
 sudo dnf update -y && \
-sudo dnf install -y gcc-toolset-12-gcc gcc-toolset-12-gcc-c++ patchelf python3.12-pip && \
-source /opt/rh/gcc-toolset-12/enable
+sudo dnf install -y gcc-toolset-14-gcc gcc-toolset-14-gcc-c++ patchelf python3.12-pip && \
+source /opt/rh/gcc-toolset-14/enable
 ```
 
 ### [Almalinux 9, 10] Install needed packages:
@@ -99,7 +99,7 @@ In this example, we will use the following directories:
 ## Download the source code
 
 ```sh
-git clone --depth 1 --branch v0.0.1 https://github.com/smbape/lua-allegro5.git /io/luarocks-binaries-custom/build && \
+git clone --depth 1 --branch v5.2.11-2 https://github.com/smbape/lua-allegro5.git /io/luarocks-binaries-custom/build && \
 cd /io/luarocks-binaries-custom/build && \
 npm ci
 ```

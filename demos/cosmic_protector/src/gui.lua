@@ -77,7 +77,7 @@ local function do_gui(widgets, selected)
                 end
             else
                 if event.type == allegro5.ALLEGRO_EVENT_DISPLAY_CLOSE then
-                    os.exit(0)
+                    return -1
                 end
             end
         end
@@ -317,7 +317,7 @@ local function do_highscores(score)
                 end
             else
                 if event.type == allegro5.ALLEGRO_EVENT_DISPLAY_CLOSE then
-                    os.exit(0)
+                    return
                 end
             end
         end

@@ -172,12 +172,10 @@ local function main(argv)
             r = r - SRC_X
             b = b - SRC_Y
 
-            src_subbmp[0 + INDEX_BASE] = allegro5.al_create_sub_bitmap(src_bmp, l, t, r - l + 1,
-                b - t + 1)
+            src_subbmp[0 + INDEX_BASE] = allegro5.al_create_sub_bitmap(src_bmp, l, t, r - l + 1, b - t + 1)
             sw = allegro5.al_get_bitmap_width(src_subbmp[0 + INDEX_BASE])
             sh = allegro5.al_get_bitmap_height(src_subbmp[0 + INDEX_BASE])
-            src_subbmp[1 + INDEX_BASE] = allegro5.al_create_sub_bitmap(src_subbmp[0 + INDEX_BASE], 2, 2,
-                sw - 4, sh - 4)
+            src_subbmp[1 + INDEX_BASE] = allegro5.al_create_sub_bitmap(src_subbmp[0 + INDEX_BASE], 2, 2, sw - 4, sh - 4)
 
             l = MIN(dst_x1, dst_x2)
             r = MAX(dst_x1, dst_x2)

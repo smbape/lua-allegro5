@@ -48,6 +48,9 @@ local function update_meter_thread_func(arg)
     local mixer = info.mixer
 
     local function update_meter(buf, samples, data)
+        -- pointer_cast creates PointerArray objects that will stay in memory until garbage collected
+        collectgarbage()
+
         local fbuf = pointer_cast("float", buf)
         local sum_l = 0.0
         local sum_r = 0.0
@@ -64,13 +67,12 @@ local function update_meter_thread_func(arg)
 
     allegro5.al_set_mixer_postprocess_callback(mixer, update_meter, nil)
 
+    -- run until requested to stop
     allegro5.al_lock_mutex(info.mutex)
     info.stop_requested = false
     while not info.stop_requested do
         allegro5.al_wait_cond(info.cond, info.mutex)
     end
-
-    allegro5.al_set_mixer_postprocess_callback(mixer, nil, nil)
 end
 
 local allegro5_lua = require("allegro5_lua")
@@ -94,10 +96,6 @@ if os.getenv("WANT_C_API") ~= "1" and type(jit) == "table" then ---@diagnostic d
 else
     ffi.cdef(cffi_lua_def)
     tonumber = ffi.tonumber
-end
-
-local intptr_t = function(cdata)
-    return tonumber(ffi.cast("intptr_t", ffi.cast("void*", cdata)))
 end
 
 ffi.cdef(cdef)
@@ -178,7 +176,7 @@ local function main_loop()
     end
 
     local thread_start = lanes.gen("*", update_meter_thread_func)
-    local thread = thread_start(intptr_t(thread_info))
+    local thread = thread_start(allegro5_lua.tolightuserdata(thread_info))
 
     local event = allegro5.ALLEGRO_EVENT()
     local redraw = true
@@ -190,6 +188,9 @@ local function main_loop()
     theta = 0.0
 
     while true do
+        -- al_map_rgb_f creates ALLEGRO_COLOR that will stay in memory until garbage collected
+        collectgarbage()
+
         if thread.status == "error" then
             error(thread[1])
         end
@@ -211,10 +212,20 @@ local function main_loop()
 
     allegro5.al_destroy_event_queue(queue)
 
+    -- post porcess callback can sometimes be called while thread is running
+    -- to avoid lua_State stack corruption,
+    -- wait until the end of mixer post process callback
+    -- before requesting the thread to stop itself
+    allegro5.al_set_mixer_postprocess_callback(thread_info.mixer, nil, nil)
+
+    -- the tread will run until requested to stop itself
+    -- request it to stop itself
     allegro5.al_lock_mutex(thread_info.mutex)
     thread_info.stop_requested = true
     allegro5.al_broadcast_cond(thread_info.cond)
     allegro5.al_unlock_mutex(thread_info.mutex)
+
+    -- wait for thread termination
     thread:join()
 end
 

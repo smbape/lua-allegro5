@@ -150,7 +150,9 @@ local function thread_func(thr, arg, arg2)
             allegro5.al_destroy_event_queue(queue)
         end
         if display then
+            allegro5.al_lock_mutex(mutex)
             allegro5.al_destroy_display(display)
+            allegro5.al_unlock_mutex(mutex)
         end
     end
 
@@ -182,6 +184,9 @@ local function thread_func(thr, arg, arg2)
     allegro5.al_start_timer(timer)
 
     while true do
+        -- al_map_rgb_f and draw_square create ALLEGRO_COLOR and ALLEGRO_TRANSFORM that will stay in memory until garbage collected
+        collectgarbage()
+
         if allegro5.al_is_event_queue_empty(queue) and redraw then
             local r = 0.7 + 0.3 * (sin(theta) + 1.0) / 2.0
             local c = allegro5.al_map_rgb_f(
@@ -235,10 +240,6 @@ if os.getenv("WANT_C_API") ~= "1" and type(jit) == "table" then ---@diagnostic d
     ffi = require("ffi")
 else
     tonumber = ffi.tonumber
-end
-
-local intptr_t = function(cdata)
-    return tonumber(ffi.cast("intptr_t", ffi.cast("void*", cdata)))
 end
 
 ffi.cdef([[
@@ -302,7 +303,7 @@ local function main(argv)
 
     local mutex = allegro5.al_create_mutex()
     for i = 1, num_threads do
-        thread[i] = thread_start(i, intptr_t(background[(i - INDEX_BASE) % MAX_BACKGROUNDS + INDEX_BASE]), intptr_t(mutex))
+        thread[i] = thread_start(i, allegro5_lua.tolightuserdata(background[(i - INDEX_BASE) % MAX_BACKGROUNDS + INDEX_BASE]), allegro5_lua.tolightuserdata(mutex))
     end
     for i = 1, num_threads do
         if thread[i].status == "error" then
