@@ -275,10 +275,6 @@
         "iid": "d7786e76-661f-4c31-999f-b6c3b4ee76a0",
         "clsid": "73941752-8327-4b12-89e1-47265f51e281"
     },
-    "ALLEGRO_SYSTEM": {
-        "iid": "97ceb823-bdad-4171-9b92-9bbcb05fc923",
-        "clsid": "fd04df16-a312-45a1-b8bd-b881a2e38e54"
-    },
     "ALLEGRO_THREAD": {
         "iid": "3af7f682-4254-4a7a-abda-af01218f5520",
         "clsid": "c3841725-6019-4c92-9071-6a470359b54b"
@@ -290,6 +286,10 @@
     "ALLEGRO_COND": {
         "iid": "592f89ce-7110-42f7-b205-6c1d23249041",
         "clsid": "7086e506-7058-4d00-89f3-0da73ec4d9c6"
+    },
+    "ALLEGRO_SYSTEM": {
+        "iid": "97ceb823-bdad-4171-9b92-9bbcb05fc923",
+        "clsid": "fd04df16-a312-45a1-b8bd-b881a2e38e54"
     },
     "ALLEGRO_TIMER": {
         "iid": "d48efd06-3c03-4988-80ef-0fcd3e685af6",

@@ -1,4 +1,4 @@
-const { spawn, spawnSync } = require("node:child_process");
+const { spawn } = require("node:child_process");
 const sysPath = require("node:path");
 const fs = require("fs-extra");
 const os = require("node:os");
@@ -123,6 +123,14 @@ for (let i = 0; i < argv.length; i++) {
             throw new Error(`${ key } is a flag not, therefore, cannot have a value`);
         }
         options[key.slice("--".length)] = value;
+        continue;
+    }
+
+    if (key.startsWith("--no-") && optionValueKeys.has(`--${ key.slice("--no-".length) }`)) {
+        if (value !== true) {
+            throw new Error(`${ key } is a flag not, therefore, cannot have a value`);
+        }
+        options[key.slice("--no-".length)] = !value;
         continue;
     }
 

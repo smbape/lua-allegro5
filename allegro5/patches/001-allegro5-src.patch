@@ -1,5 +1,5 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index 466500e6a..176be87c1 100644
+index 466500e6a..deec0cf86 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
 @@ -131,6 +131,9 @@ set(FRAMEWORK_INSTALL_PREFIX "/Library/Frameworks" CACHE STRING
@@ -38,7 +38,7 @@ index 466500e6a..176be87c1 100644
          )
  endif(NOT WANT_MONOLITH)
  
-@@ -1061,6 +1067,53 @@ install_our_headers(${ALLEGRO_PUBLIC_HEADERS})
+@@ -1061,6 +1067,57 @@ install_our_headers(${ALLEGRO_PUBLIC_HEADERS})
  #
  #-----------------------------------------------------------------------------#
  
@@ -77,6 +77,10 @@ index 466500e6a..176be87c1 100644
 +    find_package(OpenMPT CONFIG NAMES libopenmpt)
 +endif()
 +
++if (WANT_ALSA AND UNIX AND NOT APPLE AND NOT ANDROID)
++    find_package(ALSA)
++endif()
++
 +if (WANT_OPENAL)
 +    find_package(OpenAL CONFIG)
 +endif()
@@ -92,7 +96,7 @@ index 466500e6a..176be87c1 100644
  set(MONOLITH_SOURCES ${LIBRARY_SOURCES})
  
  add_subdirectory(addons)
-@@ -1084,7 +1137,8 @@ if(WANT_MONOLITH)
+@@ -1084,7 +1141,8 @@ if(WANT_MONOLITH)
          "${PLATFORM_LIBS};${MONOLITH_LIBRARIES}"
          )
      target_include_directories(allegro_monolith INTERFACE
@@ -102,7 +106,7 @@ index 466500e6a..176be87c1 100644
          )
  
      set(ALLEGRO_MONOLITH_LINK_WITH allegro_monolith)
-@@ -1300,6 +1354,36 @@ endif(WANT_PYTHON_WRAPPER)
+@@ -1300,6 +1358,36 @@ endif(WANT_PYTHON_WRAPPER)
  # Output a report string showing what features are supported.
  message(NOTICE "${SPACER}\n${CONFIGURATION_SUMMARY}${SPACER}\n")
  
@@ -140,7 +144,7 @@ index 466500e6a..176be87c1 100644
  #-----------------------------------------------------------------------------#
  # vim: set sts=4 sw=4 et:
 diff --git a/addons/CMakeLists.txt b/addons/CMakeLists.txt
-index f8867e26b..b8c9016b4 100644
+index f8867e26b..c4bbf7250 100644
 --- a/addons/CMakeLists.txt
 +++ b/addons/CMakeLists.txt
 @@ -75,7 +75,18 @@ addons_summary("- Acodec addon" SUPPORT_ACODEC)
@@ -163,7 +167,7 @@ index f8867e26b..b8c9016b4 100644
  
      option(FREETYPE_ZLIB "Enable if FreeType static library needs zlib linked in." off)
      option(FREETYPE_BZIP2 "Enable if FreeType static library needs bzip2 linked in." off)
-@@ -187,7 +198,19 @@ endif(WANT_MEMFILE)
+@@ -187,7 +198,21 @@ endif(WANT_MEMFILE)
  addons_summary("- Memfile addon" SUPPORT_MEMFILE)
  
  if(WANT_PHYSFS)
@@ -171,11 +175,13 @@ index f8867e26b..b8c9016b4 100644
 +    if (TARGET PhysFS::PhysFS)
 +        unset(PHYSFS_INCLUDE_DIR)
 +        set(PHYSFS_LIBRARY PhysFS::PhysFS)
++        set(PHYSFS_LIBRARIES ${PHYSFS_LIBRARY})
 +        unset(PhysFS_FOUND)
 +        set(SUPPORT_PHYSFS 1)
 +    elseif(TARGET PhysFS::PhysFS-static)
 +        unset(PHYSFS_INCLUDE_DIR)
 +        set(PHYSFS_LIBRARY PhysFS::PhysFS-static)
++        set(PHYSFS_LIBRARIES ${PHYSFS_LIBRARY})
 +        unset(PhysFS_FOUND)
 +        set(SUPPORT_PHYSFS 1)
 +    else()
@@ -184,7 +190,7 @@ index f8867e26b..b8c9016b4 100644
      mark_as_advanced(PHYSFS_INCLUDE_DIR)
      mark_as_advanced(PHYSFS_LIBRARY)
  
-@@ -268,6 +291,7 @@ set(MONOLITH_LINK_DIRECTORIES ${MONOLITH_LINK_DIRECTORIES} PARENT_SCOPE)
+@@ -268,6 +293,7 @@ set(MONOLITH_LINK_DIRECTORIES ${MONOLITH_LINK_DIRECTORIES} PARENT_SCOPE)
  set(MONOLITH_LIBRARIES ${MONOLITH_LIBRARIES} PARENT_SCOPE)
  set(MONOLITH_HEADERS ${MONOLITH_HEADERS} PARENT_SCOPE)
  set(MONOLITH_DEFINES ${MONOLITH_DEFINES} PARENT_SCOPE)
@@ -512,6 +518,19 @@ index f58e45f2c..8fd55db96 100644
                    al_color_rgb_to_lch(v[0], v[1], v[2], v + 16, v + 17, v + 18);
                    v[3] /= 360;
                    v[6] /= 360;
+diff --git a/examples/ex_depth_target.c b/examples/ex_depth_target.c
+index ec85b19bb..93a7f5be8 100644
+--- a/examples/ex_depth_target.c
++++ b/examples/ex_depth_target.c
+@@ -102,7 +102,7 @@ static void redraw(void)
+    al_translate_transform(&transform, 512 + 128, 256 + 128);
+    al_use_transform(&transform);
+    al_draw_bitmap(example.target_no_multisample, 0, 0, 0);
+-   al_draw_textf(example.font, black, 0, 0, 0, "no multisample");
++   al_draw_text(example.font, black, 0, 0, 0, "no multisample");
+ 
+    al_identity_transform(&transform);
+    al_use_transform(&transform);
 diff --git a/examples/ex_record_name.c b/examples/ex_record_name.c
 index 103c40c37..c755069c3 100644
 --- a/examples/ex_record_name.c
@@ -3628,6 +3647,41 @@ index fffc88b28..6f1f92e79 100644
  #ifndef GL_EXT_fog_coord
  #define GL_EXT_fog_coord
  #define _ALLEGRO_GL_EXT_fog_coord
+diff --git a/include/allegro5/system.h b/include/allegro5/system.h
+index 5e25cf686..1eacf64d7 100644
+--- a/include/allegro5/system.h
++++ b/include/allegro5/system.h
+@@ -3,6 +3,7 @@
+ 
+ #include "allegro5/config.h"
+ #include "allegro5/path.h"
++#include "allegro5/threads.h"
+ 
+ #ifdef __cplusplus
+    extern "C" {
+@@ -57,6 +58,8 @@ AL_FUNC(const char *, al_get_app_name, (void));
+ 
+ AL_FUNC(bool, al_inhibit_screensaver, (bool inhibit));
+ 
++extern ALLEGRO_MUTEX* _system_display_mutex;
++
+ #ifdef __cplusplus
+    }
+ #endif
+diff --git a/src/android/android_display.c b/src/android/android_display.c
+index d5ccdf689..cba2364d6 100644
+--- a/src/android/android_display.c
++++ b/src/android/android_display.c
+@@ -569,7 +569,9 @@ static ALLEGRO_DISPLAY *android_create_display(int w, int h)
+    ASSERT(system != NULL);
+ 
+    ALLEGRO_DISPLAY_ANDROID **add;
++   al_lock_mutex(_system_display_mutex);
+    add = _al_vector_alloc_back(&system->displays);
++   al_unlock_mutex(_system_display_mutex);
+    *add = d;
+ 
+    al_lock_mutex(d->mutex);
 diff --git a/src/events.c b/src/events.c
 index 6388221ac..655ee6d7c 100644
 --- a/src/events.c
@@ -3658,6 +3712,34 @@ index 6388221ac..655ee6d7c 100644
  
        /* Unregister any event sources registered with this queue.  */
        while (_al_vector_is_nonempty(&queue->sources)) {
+diff --git a/src/gp2xwiz/wiz_display_fb.c b/src/gp2xwiz/wiz_display_fb.c
+index e2fbbefe4..906f1a188 100644
+--- a/src/gp2xwiz/wiz_display_fb.c
++++ b/src/gp2xwiz/wiz_display_fb.c
+@@ -51,7 +51,9 @@ static ALLEGRO_DISPLAY *gp2xwiz_create_display_fb(int w, int h)
+ 
+    /* Add ourself to the list of displays. */
+    ALLEGRO_DISPLAY_GP2XWIZ_FB **add;
++   al_lock_mutex(_system_display_mutex);
+    add = _al_vector_alloc_back(&system->system.displays);
++   al_unlock_mutex(_system_display_mutex);
+    *add = d;
+ 
+    /* Each display is an event source. */
+diff --git a/src/gp2xwiz/wiz_display_opengl.c b/src/gp2xwiz/wiz_display_opengl.c
+index dd8ea17c0..bf48ffd92 100644
+--- a/src/gp2xwiz/wiz_display_opengl.c
++++ b/src/gp2xwiz/wiz_display_opengl.c
+@@ -80,7 +80,9 @@ static ALLEGRO_DISPLAY *gp2xwiz_create_display_ogl(int w, int h)
+ 
+    /* Add ourself to the list of displays. */
+    ALLEGRO_DISPLAY_GP2XWIZ_OGL **add;
++   al_lock_mutex(_system_display_mutex);
+    add = _al_vector_alloc_back(&system->system.displays);
++   al_unlock_mutex(_system_display_mutex);
+    *add = d;
+ 
+    /* Each display is an event source. */
 diff --git a/src/line_soft.c b/src/line_soft.c
 index 893b0b9b7..781f71806 100644
 --- a/src/line_soft.c
@@ -3712,3 +3794,141 @@ index 946ca86fe..a5d3fe8f9 100644
     if (gl_disp->ogl_extras->ogl_info.version >= _ALLEGRO_OPENGL_VERSION_3_0) {
        ALLEGRO_DEBUG("OpenGL Extensions:\n");
        print_extensions_3_0();
+diff --git a/src/raspberrypi/pidisplay.c b/src/raspberrypi/pidisplay.c
+index 158e88196..478737739 100644
+--- a/src/raspberrypi/pidisplay.c
++++ b/src/raspberrypi/pidisplay.c
+@@ -409,7 +409,9 @@ static ALLEGRO_DISPLAY *raspberrypi_create_display(int w, int h)
+ 
+     /* Add ourself to the list of displays. */
+     ALLEGRO_DISPLAY_RASPBERRYPI **add;
++    al_lock_mutex(_system_display_mutex);
+     add = _al_vector_alloc_back(&system->system.displays);
++    al_unlock_mutex(_system_display_mutex);
+     *add = d;
+ 
+     /* Each display is an event source. */
+diff --git a/src/sdl/sdl_display.c b/src/sdl/sdl_display.c
+index db3c51f0f..182df8eab 100644
+--- a/src/sdl/sdl_display.c
++++ b/src/sdl/sdl_display.c
+@@ -186,7 +186,9 @@ static ALLEGRO_DISPLAY *sdl_create_display_locked(int w, int h)
+ 
+    ALLEGRO_DISPLAY **add;
+    ALLEGRO_SYSTEM *system = al_get_system_driver();
++   al_lock_mutex(_system_display_mutex);
+    add = _al_vector_alloc_back(&system->displays);
++   al_unlock_mutex(_system_display_mutex);
+    *add = d;
+ 
+    _al_event_source_init(&d->es);
+diff --git a/src/system.c b/src/system.c
+index a194d53ad..cf05289b3 100644
+--- a/src/system.c
++++ b/src/system.c
+@@ -39,6 +39,7 @@
+ 
+ ALLEGRO_DEBUG_CHANNEL("system")
+ 
++ALLEGRO_MUTEX* _system_display_mutex = NULL;
+ static ALLEGRO_SYSTEM *active_sysdrv = NULL;
+ static ALLEGRO_CONFIG *sys_config = NULL;
+ 
+@@ -231,6 +232,8 @@ bool al_install_system(int version, int (*atexit_ptr)(void (*)(void)))
+    if (!compatible_versions(version, library_version))
+       return false;
+ 
++   _system_display_mutex = al_create_mutex();
++
+    _al_tls_init_once();
+    _al_reinitialize_tls_values();
+ 
+@@ -330,6 +333,9 @@ void al_uninstall_system(void)
+    _al_glsl_shutdown_shaders();
+ #endif
+ 
++   al_destroy_mutex(_system_display_mutex);
++   _system_display_mutex = NULL;
++
+    _al_shutdown_logging();
+ 
+    /* shutdown_system_driver is registered as an exit func so we don't need
+diff --git a/src/win/d3d_disp.cpp b/src/win/d3d_disp.cpp
+index 78a45cb2e..e28a9bacb 100644
+--- a/src/win/d3d_disp.cpp
++++ b/src/win/d3d_disp.cpp
+@@ -1879,7 +1879,9 @@ static ALLEGRO_DISPLAY *d3d_create_display_locked(int w, int h)
+    ASSERT(al_display->vt);
+ 
+    /* Add ourself to the list of displays. */
++   al_lock_mutex(_system_display_mutex);
+    add = (ALLEGRO_DISPLAY_D3D **)_al_vector_alloc_back(&system->system.displays);
++   al_unlock_mutex(_system_display_mutex);
+    *add = d3d_display;
+ 
+    /* Each display is an event source. */
+diff --git a/src/win/wgl_disp.c b/src/win/wgl_disp.c
+index 837712e9e..e63054f02 100644
+--- a/src/win/wgl_disp.c
++++ b/src/win/wgl_disp.c
+@@ -1046,7 +1046,9 @@ static ALLEGRO_DISPLAY* wgl_create_display(int w, int h)
+    ALLEGRO_INFO("Renderer: %s\n\n", (const char*)glGetString(GL_RENDERER));
+ 
+    /* Add ourself to the list of displays. */
++   al_lock_mutex(_system_display_mutex);
+    add = _al_vector_alloc_back(&system->system.displays);
++   al_unlock_mutex(_system_display_mutex);
+    *add = wgl_display;
+ 
+    /* Each display is an event source. */
+diff --git a/src/x/xdisplay.c b/src/x/xdisplay.c
+index 2ca03c130..f2b9f55b5 100644
+--- a/src/x/xdisplay.c
++++ b/src/x/xdisplay.c
+@@ -367,7 +367,9 @@ static ALLEGRO_DISPLAY_XGLX *xdpy_create_display_locked(
+ 
+    /* Add ourself to the list of displays. */
+    ALLEGRO_DISPLAY_XGLX **add;
++   al_lock_mutex(_system_display_mutex);
+    add = _al_vector_alloc_back(&system->system.displays);
++   al_unlock_mutex(_system_display_mutex);
+    *add = d;
+ 
+    /* Each display is an event source. */
+diff --git a/src/x/xsystem.c b/src/x/xsystem.c
+index cf2e2a88d..01f203ca2 100644
+--- a/src/x/xsystem.c
++++ b/src/x/xsystem.c
+@@ -156,23 +156,27 @@ static void xglx_shutdown_system(void)
+ 
+    // Makes sure we wait for any commands sent to the X server when destroying the displays.
+    // Should make sure we don't shutdown before modes are restored.
++   if (sx->gfxdisplay) {
++      XSync(sx->gfxdisplay, False);
++   }
++
+    if (sx->x11display) {
+       XSync(sx->x11display, False);
+    }
+ 
+    _al_xsys_mmon_exit(sx);
+ 
++   if (sx->gfxdisplay) {
++      XCloseDisplay(sx->gfxdisplay);
++      sx->gfxdisplay = None;
++   }
++
+    if (sx->x11display) {
+       XCloseDisplay(sx->x11display);
+       sx->x11display = None;
+       ALLEGRO_DEBUG("xsys: close x11display.\n");
+    }
+ 
+-   if (sx->gfxdisplay) {
+-      XCloseDisplay(sx->gfxdisplay);
+-      sx->gfxdisplay = None;
+-   }
+-
+    al_free(sx);
+ }
+ 

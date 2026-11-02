@@ -127,10 +127,6 @@ ffi.cdef(cdef)
 
 local AsyncDialog = ffi.typeof("AsyncDialog")
 
-local intptr_t = function(cdata)
-    return tonumber(ffi.cast("intptr_t", ffi.cast("void*", cdata)))
-end
-
 --[[
  -    Example program for the Allegro library.
  -
@@ -171,7 +167,7 @@ local function spawn_async_file_dialog(display, initial_path, save)
     allegro5.al_init_user_event_source(data.event_source)
     data.display = display
 
-    local thread = async_file_dialog_thread_start(intptr_t(data))
+    local thread = async_file_dialog_thread_start(allegro5_lua.tolightuserdata(data))
 
     return {
         dialog = data,
@@ -187,7 +183,7 @@ local function spawn_async_message_dialog(display)
     allegro5.al_init_user_event_source(data.event_source)
     data.display = display
 
-    local thread = message_box_thread_start(intptr_t(data))
+    local thread = message_box_thread_start(allegro5_lua.tolightuserdata(data))
 
     return {
         dialog = data,

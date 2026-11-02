@@ -109,7 +109,7 @@ local function logic(step)
             end
         else
             if event.type == allegro5.ALLEGRO_EVENT_DISPLAY_CLOSE then
-                os.exit(0)
+                return false
             end
         end
     end

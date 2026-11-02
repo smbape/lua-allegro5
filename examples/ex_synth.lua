@@ -116,10 +116,6 @@ else
     tonumber = ffi.tonumber
 end
 
-local intptr_t = function(cdata)
-    return tonumber(ffi.cast("intptr_t", ffi.cast("void*", cdata)))
-end
-
 ffi.cdef(cdef)
 
 local ThreadInfo = ffi.typeof("ThreadInfo")
@@ -386,7 +382,7 @@ function Prog.run(self, mixer)
     end
 
     local thread_start = lanes.gen("*", mixer_pp_thread_func)
-    local thread = thread_start(intptr_t(thread_info))
+    local thread = thread_start(allegro5_lua.tolightuserdata(thread_info))
 
     self.d:prepare()
 

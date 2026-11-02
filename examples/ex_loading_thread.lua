@@ -7,35 +7,45 @@ Sources:
     https://github.com/liballeg/allegro5/blob/5.2.11.3/examples/ex_loading_thread.c
 --]]
 
-local allegro5_lua = require("allegro5_lua")
-local allegro5 = allegro5_lua.allegro5
-local bit = bit or allegro5_lua.bit ---@diagnostic disable-line: no-unknown, undefined-global
-local common = require("common")
+local cdef = [[
+typedef struct ThreadInfo {
+    int load_count;
+    ALLEGRO_BITMAP *bitmaps[100];
+    ALLEGRO_MUTEX *mutex;
+    bool stop_requested;
+} ThreadInfo;
+]]
 
-local env = common.env
-
-local abort_example = common.abort_example
-local open_log = common.open_log
-local init_platform_specific = common.init_platform_specific
-local close_log = common.close_log
-local log_printf = common.log_printf
-local rand = common.rand
-
-local INDEX_BASE = 1 -- lua is 1-based indexed
-
-local ffi = allegro5_lua.ffi
-
-if os.getenv("WANT_C_API") ~= "1" and type(jit) == "table" then ---@diagnostic disable-line: no-unknown, undefined-global
-    allegro5 = require("allegro5_lua.al5_ffi")() ---@type allegro5 ---@type allegro5
-    ffi = require("ffi")
-end
+local cffi_lua_def = [[
+    typedef struct ALLEGRO_BITMAP ALLEGRO_BITMAP;
+    typedef struct ALLEGRO_MUTEX ALLEGRO_MUTEX;
+]]
 
 local load_total = 100
-local load_count = 0
-local bitmaps = {}
--- local mutex
 
-local function loading_thread(thread, arg)
+local function loading_thread(arg)
+    local allegro5_lua = require("allegro5_lua")
+    local allegro5 = allegro5_lua.allegro5
+    local common = require("common")
+
+    local env = common.env
+
+    local abort_example = common.abort_example
+    local rand = common.rand
+
+    local ffi = allegro5_lua.ffi
+
+    if os.getenv("WANT_C_API") ~= "1" and type(jit) == "table" then ---@diagnostic disable-line: no-unknown, undefined-global
+        allegro5 = require("allegro5_lua.al5_ffi")() ---@type allegro5 ---@type allegro5
+        ffi = require("ffi")
+    else
+        ffi.cdef(cffi_lua_def)
+    end
+
+    ffi.cdef(cdef)
+
+    local info = ffi.cast("ThreadInfo*", arg)
+
     local font = allegro5.al_load_font(env.ALLEGRO_EXAMPLES_DATA_PATH .. "/fixed_font.tga", 0, 0)
     if not font then
         abort_example("Error loading " .. env.ALLEGRO_EXAMPLES_DATA_PATH .. "/fixed_font.tga\n")
@@ -46,13 +56,8 @@ local function loading_thread(thread, arg)
     --[[ In this example we load mysha.pcx 100 times to simulate loading
     - many bitmaps.
     --]]
-    load_count = 0
-    while load_count < load_total do
-        -- lua is not thread safe
-        -- it is mandatory to explicitely stop the current thread
-        -- to allow other threads to run
-        coroutine.yield()
-
+    info.load_count = 0
+    while info.load_count < load_total do
         local color = allegro5.ALLEGRO_COLOR()
 
         color = allegro5.al_map_rgb(rand() % 256, rand() % 256, rand() % 256)
@@ -60,10 +65,6 @@ local function loading_thread(thread, arg)
         color.g = color.g / 4
         color.b = color.b / 4
         color.a = color.a / 4
-
-        -- if allegro.al_get_thread_should_stop(thread) then
-        --     break
-        -- end
 
         local bmp = allegro5.al_load_bitmap(env.ALLEGRO_EXAMPLES_DATA_PATH .. "/mysha.pcx")
         if not bmp then
@@ -74,22 +75,51 @@ local function loading_thread(thread, arg)
         local backup = allegro5.al_get_target_bitmap()
         allegro5.al_set_target_bitmap(bmp)
         allegro5.al_draw_filled_rectangle(0, 0, 320, 200, color)
-        allegro5.al_draw_text(font, text, 0, 0, 0, string.format("bitmap %d", 1 + load_count))
+        allegro5.al_draw_text(font, text, 0, 0, 0, string.format("bitmap %d", 1 + info.load_count))
         allegro5.al_set_target_bitmap(backup)
 
         --[[ Allow the main thread to see the completed bitmap. --]]
-        -- allegro.al_lock_mutex(mutex)
-        bitmaps[load_count + INDEX_BASE] = bmp
-        load_count = load_count + 1
-        -- allegro.al_unlock_mutex(mutex)
+        allegro5.al_lock_mutex(info.mutex)
+        if info.stop_requested then
+            break
+        end
+        info.bitmaps[info.load_count] = bmp
+        info.load_count = info.load_count + 1
+        allegro5.al_unlock_mutex(info.mutex)
 
         --[[ Simulate that it's slow. --]]
         allegro5.al_rest(0.05)
     end
 
     allegro5.al_destroy_font(font)
-    return arg
 end
+
+local allegro5_lua = require("allegro5_lua")
+local allegro5 = allegro5_lua.allegro5
+local bit = bit or allegro5_lua.bit ---@diagnostic disable-line: no-unknown, undefined-global
+local common = require("common")
+local lanes = require("lanes")
+
+local env = common.env
+
+local abort_example = common.abort_example
+local open_log = common.open_log
+local init_platform_specific = common.init_platform_specific
+local close_log = common.close_log
+local log_printf = common.log_printf
+
+local ffi = allegro5_lua.ffi
+
+if os.getenv("WANT_C_API") ~= "1" and type(jit) == "table" then ---@diagnostic disable-line: no-unknown, undefined-global
+    allegro5 = require("allegro5_lua.al5_ffi")() ---@type allegro5 ---@type allegro5
+    ffi = require("ffi")
+else
+    ffi.cdef(cffi_lua_def)
+end
+
+ffi.cdef(cdef)
+
+local ThreadInfo = ffi.typeof("ThreadInfo")
 
 local function print_bitmap_flags(bitmap)
     local ustr = allegro5.al_ustr_new("")
@@ -112,6 +142,7 @@ end
 
 local function main()
     local redraw = true
+    local display
     local spin, spin2
     local current_bitmap = 0
     local loaded_bitmap = 0
@@ -143,7 +174,7 @@ local function main()
     print_bitmap_flags(spin)
     log_printf("\n")
 
-    local display = allegro5.al_create_display(64, 64)
+    display = allegro5.al_create_display(64, 64)
     if not display then
         abort_example("Error creating display\n")
     end
@@ -181,10 +212,11 @@ local function main()
 
     local font = allegro5.al_load_font(env.ALLEGRO_EXAMPLES_DATA_PATH .. "/fixed_font.tga", 0, 0)
 
-    -- mutex = allegro.al_create_mutex()
-    -- local thread = allegro.al_create_thread(loading_thread, nil)
-    -- allegro.al_start_thread(thread)
-    local thread = coroutine.create(loading_thread)
+    local info = ThreadInfo()
+
+    info.mutex = allegro5.al_create_mutex()
+    local thread_start = lanes.gen("*", loading_thread)
+    local thread = thread_start(allegro5_lua.tolightuserdata(info))
 
     local timer = allegro5.al_create_timer(1.0 / 30)
     local queue = allegro5.al_create_event_queue()
@@ -194,10 +226,9 @@ local function main()
     allegro5.al_start_timer(timer)
 
     while 1 do
-        -- lua is not thread safe
-        -- it is mandatory to explicitely stop the current thread
-        -- to allow other thread to run
-        coroutine.resume(thread)
+        if thread.status == "error" then
+            error(thread[1])
+        end
 
         local event = allegro5.ALLEGRO_EVENT()
         allegro5.al_wait_for_event(queue, event)
@@ -223,29 +254,29 @@ local function main()
             allegro5.al_clear_to_color(allegro5.al_map_rgb_f(0.5, 0.6, 1))
 
             allegro5.al_draw_text(font, color, x + 40, y, 0, string.format("Loading %d%%",
-                math.floor(100 * load_count / load_total)))
+                math.floor(100 * info.load_count / load_total)))
 
-            -- allegro.al_lock_mutex(mutex)
-            if loaded_bitmap < load_count then
+            allegro5.al_lock_mutex(info.mutex)
+            if loaded_bitmap < info.load_count then
                 --[[ This will convert any video bitmaps without a display
              - (all the bitmaps being loaded in the loading_thread) to
              - video bitmaps we can use in the main thread.
              --]]
-                allegro5.al_convert_bitmap(bitmaps[loaded_bitmap + INDEX_BASE])
+                allegro5.al_convert_bitmap(info.bitmaps[loaded_bitmap])
                 loaded_bitmap = loaded_bitmap + 1
             end
-            -- allegro.al_unlock_mutex(mutex)
+            allegro5.al_unlock_mutex(info.mutex)
 
             if current_bitmap < loaded_bitmap then
                 local bw = 0
-                allegro5.al_draw_bitmap(bitmaps[current_bitmap + INDEX_BASE], 0, 0, 0)
+                allegro5.al_draw_bitmap(info.bitmaps[current_bitmap], 0, 0, 0)
                 if current_bitmap + 1 < loaded_bitmap then
                     current_bitmap = current_bitmap + 1
                 end
 
                 for i = 0, current_bitmap do
-                    bw = allegro5.al_get_bitmap_width(bitmaps[i + INDEX_BASE])
-                    allegro5.al_draw_scaled_rotated_bitmap(bitmaps[i + INDEX_BASE],
+                    bw = allegro5.al_get_bitmap_width(info.bitmaps[i])
+                    allegro5.al_draw_scaled_rotated_bitmap(info.bitmaps[i],
                         0, 0, (i % 20) * 640 / 20, 360 + math.floor(i / 20) * 24,
                         32.0 / bw, 32.0 / bw, 0, 0)
                 end
@@ -260,8 +291,11 @@ local function main()
         end
     end
 
-    -- allegro.al_join_thread(thread, nil)
-    -- allegro.al_destroy_mutex(mutex)
+    allegro5.al_lock_mutex(info.mutex)
+    info.stop_requested = true
+    allegro5.al_unlock_mutex(info.mutex)
+    thread:join()
+    allegro5.al_destroy_mutex(info.mutex)
     allegro5.al_destroy_font(font)
     allegro5.al_destroy_display(display)
 

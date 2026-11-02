@@ -264,6 +264,14 @@ for (let i = 0; i < argv.length; i++) {
         continue;
     }
 
+    if (key.startsWith("--no-") && optionValueKeys.has(`--${ key.slice("--no-".length) }`)) {
+        if (value !== true) {
+            throw new Error(`${ key } is a flag not, therefore, cannot have a value`);
+        }
+        options[key.slice("--no-".length)] = !value;
+        continue;
+    }
+
     if (oneValueKeys.has(key)) {
         if (eq === -1) {
             value = argv[++i];

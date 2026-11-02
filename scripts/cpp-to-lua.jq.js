@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 
 const fs = require("node:fs");
-const sysPath = require("node:path");
 
 const typedefs = require("../generator/c_parser/typedefs");
 const {Parser} = require("../generator/c_parser/Parser");
@@ -602,7 +601,7 @@ const getTypeName = specifiers => {
     }
 
     return specifiers[i];
-}
+};
 
 replacers.Declaration = (parser, replacements, node, parents) => {
     const {input} = parser;
@@ -1659,8 +1658,8 @@ ${ getReplacedInput(input, replacements, 0, input.length) }
 const convert = (code, filename, output, types) => {
     const converted = [
         rewrite_c.bind(null, filename, types),
-    ].reduce((code, pipeline, index) => {
-        return pipeline(code);
+    ].reduce((current, pipeline, index) => {
+        return pipeline(current);
     }, code);
 
     if (output === "-") {

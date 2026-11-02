@@ -2,7 +2,7 @@
 
 Allegro5 bindings for luajit and lua 5.1/5.2/5.3/5.4/5.5.
 
-The aim is to make it colse a as possible to the c-api.
+The aim is to make it colse a as possible to the [Allegro 5](https://github.com/liballeg/allegro5/) c-api.
 
 Therefore the [Allegro5 documentation](https://liballeg.org/a5docs/5.2.11.3/index.html) should be the reference.
 
@@ -101,7 +101,7 @@ sudo dnf install -y epel-release && \
 sudo dnf install -y https://mirrors.rpmfusion.org/free/el/rpmfusion-free-release-8.noarch.rpm
 sudo dnf install -y https://mirrors.rpmfusion.org/nonfree/el/rpmfusion-nonfree-release-8.noarch.rpm && \
 sudo dnf update -y && \
-sudo dnf install -y gcc-toolset-12-gcc gcc-toolset-12-gcc-c++ patchelf python3.12-pip && \
+sudo dnf install -y gcc-toolset-14-gcc gcc-toolset-14-gcc-c++ patchelf python3.12-pip && \
 source curl 
 ```
 
@@ -125,8 +125,6 @@ sudo dnf install -y curl gcc gcc-c++ patchelf python3-pip
 
 I recommend you to try to install the prebuilt binary.
 
-If you are not using luajit
-
 ```sh
 luarocks install --server=https://github.com/smbape/luarocks-binaries/releases/download/v0.0.1 allegro5_lua
 ```
@@ -147,7 +145,6 @@ Those prebuilt binaries should work on Windows and many linux distributions and 
   - Ubuntu 22.04
   - Ubuntu 24.04
   - Ubuntu 26.04
-  - Debian 11
   - Debian 12
   - Debian 13
   - Fedora 43
@@ -165,7 +162,7 @@ luarocks install --server=https://github.com/smbape/luarocks-binaries/releases/d
 
 ## Examples
 
-More expamples can be found in the [expamples](expamples) directory.
+More examples can be found in the [examples](examples) directory.
 
 ### Game loop example
 
@@ -322,12 +319,22 @@ al_unmap_rgb_f(color, &r, &g, &b);
 #include <allegro5/allegro_font.h>
 #include <allegro5/allegro_color.h>
 
+void abort_example(char const *format, ...)
+{
+   va_list args;
+   va_start(args, format);
+   vfprintf(stderr, format, args);
+   va_end(args);
+   exit(1);
+}
+
 int main(int argc, char **argv)
 {
     ALLEGRO_TIMER *timer;
     ALLEGRO_EVENT_QUEUE *queue;
     ALLEGRO_FONT *font;
     ALLEGRO_DISPLAY *display;
+    int FPS = 60;
     int w = 1280, h = 720;
     bool done = false;
     bool redraw = true;
@@ -339,10 +346,14 @@ int main(int argc, char **argv)
         abort_example("Failed to init Allegro.\n");
     }
 
+    /* Allegro requires installing drivers for all input devices before
+     * they can be used.
+     */
+    al_install_mouse();
+    al_install_keyboard();
+
     al_init_font_addon();
     font = al_create_builtin_font();
-
-    init_platform_specific();
 
     display = al_create_display(w, h);
     if (!display) {
@@ -386,7 +397,6 @@ int main(int argc, char **argv)
                 break;
 
             case ALLEGRO_EVENT_TIMER:
-                update();
                 redraw = true;
                 break;
         }
@@ -405,40 +415,50 @@ local r, g, b = allegro5.al_unmap_rgb_f(color)
 local allegro5_lua = require("allegro5_lua")
 local allegro5 = allegro5_lua.allegro5
 
--- For a faster runtime, use luajit FFI Library when possible
-if os.getenv("WANT_C_API") ~= "1" and type(jit) == "table" then
+if os.getenv("WANT_C_API") ~= "1" and type(jit) == "table" then ---@diagnostic disable-line: undefined-global
     allegro5 = require("allegro5_lua.al5_ffi")()
 end
 
 local function main()
     local FPS = 60
-    local w, h = 800, 600
+    local w, h = 1280, 720
+    local done = false
+    local redraw = true
 
     if not allegro5.al_init() then
-        error("Failed to init Allegro")
+        error("Failed to init Allegro.\n")
     end
+
+    --[[ Allegro requires installing drivers for all input devices before
+     - they can be used.
+     --]]
+    allegro5.al_install_mouse()
+    allegro5.al_install_keyboard()
 
     allegro5.al_init_font_addon()
     local font = allegro5.al_create_builtin_font()
 
     local display = allegro5.al_create_display(w, h)
     if not display then
-        error("Error creating display")
+        error("Error creating display.\n")
     end
+
+    allegro5.al_install_keyboard()
 
     local timer = allegro5.al_create_timer(1.0 / FPS)
 
     local queue = allegro5.al_create_event_queue()
+    allegro5.al_register_event_source(queue, allegro5.al_get_mouse_event_source())
     allegro5.al_register_event_source(queue, allegro5.al_get_keyboard_event_source())
     allegro5.al_register_event_source(queue, allegro5.al_get_timer_event_source(timer))
-    allegro5.al_register_event_source(queue, allegro5.al_get_display_event_source(display))
 
-    local done = false
-    local redraw = true
+    allegro5.al_register_event_source(queue, allegro5.al_get_display_event_source(display))
 
     allegro5.al_start_timer(timer)
 
     while not done do
+        local event = allegro5.ALLEGRO_EVENT()
+
         if redraw and allegro5.al_is_event_queue_empty(queue) then
             allegro5.al_clear_to_color(allegro5.al_map_rgb_f(0.0, 0.0, 0.0))
             allegro5.al_draw_text(font, allegro5.al_map_rgb_f(1.0, 1.0, 1.0),
@@ -449,6 +469,7 @@ local function main()
         end
 
         allegro5.al_wait_for_event(queue, event)
+
         if event.type == allegro5.ALLEGRO_EVENT_KEY_CHAR then
             if event.keyboard.keycode == allegro5.ALLEGRO_KEY_ESCAPE then
                 done = true
@@ -458,10 +479,6 @@ local function main()
         elseif event.type == allegro5.ALLEGRO_EVENT_TIMER then
             redraw = true
         end
-    end
-
-    if allegro5.al_is_system_installed() then
-        allegro5.al_uninstall_system()
     end
 end
 
@@ -509,7 +526,7 @@ Lua < 5.3 has no integer type, therefore, %d will not work.
 
 ### 0 is not falsy
 
-In c/c++, it is common to implicitely cast bit operations results as boolean
+In c/c++, it is common to implicitely cast bit operations results to boolean
 
 ```c
 if (flag_names[i]) {
@@ -528,10 +545,10 @@ Results must be explicitely compared to `0`
 if flag_names[i + 1] then
     local continue = false
 
-    if bit.band(flags, (bit.lshift(1, i))) ~= 0 then
+    if bit.band(flags, bit.lshift(1, i)) ~= 0 then
         c = allegro.al_map_rgb_f(0.5, 0, 0)
         -- continue = false
-    elseif bit.band(old_flags, (bit.lshift(1, i))) ~= 0 then
+    elseif bit.band(old_flags, bit.lshift(1, i)) ~= 0 then
         c = allegro.al_map_rgb_f(0.5, 0.4, 0.4)
         -- continue = false
     else

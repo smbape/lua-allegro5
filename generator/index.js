@@ -491,6 +491,7 @@ const options = getOptions(PROJECT_DIR);
 options.proto = LuaGenerator.proto;
 
 options.generated.set(sysPath.join(options.output, "bit_string.lua.inc"), true);
+options.generated.set(sysPath.join(options.output, "cdata_utils_string.lua.inc"), true);
 options.generated.set(sysPath.join(options.output, "version_string.inc"), true);
 
 const getExtractorType = type => {
@@ -583,7 +584,7 @@ waterfall([
     },
 
     (srcfiles, generated_include, next) => {
-        const cdefs = findSourceDir("allegro5_lua/luajit-2.1/cdefs/cdefs.txt");
+        const cdefs = findSourceDir("allegro5_lua/*/cdefs/cdefs.txt");
         fs.readFile(cdefs, (err, buffer) => {
             next(err, srcfiles, generated_include, buffer);
         });
@@ -839,13 +840,13 @@ waterfall([
                     "LUA_VERSION_NUM": 504,
                 }
             )
+
             all_decls = []
+
             for hdr in srcfiles:
                 decls = parser.parse(hdr)
-                if len(decls) == 0 or hdr.find('/python/') != -1:
-                    continue
-
-                all_decls += decls
+                if len(decls) != 0:
+                    all_decls += decls
 
             # parser.print_decls(all_decls)
             print(json.dumps({"decls": all_decls, "namespaces": sorted(parser.namespaces)}, indent=4))

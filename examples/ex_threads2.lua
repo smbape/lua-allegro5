@@ -242,16 +242,11 @@ if os.getenv("WANT_C_API") ~= "1" and type(jit) == "table" then ---@diagnostic d
     ffi = require("ffi")
 else
     ffi.cdef(cffi_lua_def)
-    tonumber = ffi.tonumber
 end
 
 ffi.cdef(cdef)
 
 local ThreadInfo = ffi.typeof("ThreadInfo")
-
-local intptr_t = function(cdata)
-    return tonumber(ffi.cast("intptr_t", ffi.cast("void*", cdata)))
-end
 
 --[[ size of each fractal image --]]
 local W = 120
@@ -376,7 +371,7 @@ local function main()
     set_target(8, 0.36676836392830602929, 0.59081385302214906030)
 
     for i = 1, NUM_THREADS do
-        thread[i] = thread_start(i, intptr_t(thread_info[i]))
+        thread[i] = thread_start(i, allegro5_lua.tolightuserdata(thread_info[i]))
     end
     allegro5.al_start_timer(timer)
 

@@ -55,7 +55,7 @@ class AsmAndAttributesMixin:
             encountered on the way down to a TypeDecl, to allow proper
             generation from it.
         """
-        # ~ print(n, modifiers)
+        # print(n, modifiers)
         match n:
             case c_ast.TypeDecl() | TypeDeclExt():
                 s = ""
@@ -117,8 +117,11 @@ class AsmAndAttributesMixin:
                 if hasattr(n, "asm") and n.asm:
                     nstr += self.visit(n.asm)
 
-                if hasattr(n, "attributes") and n.attributes.exprs:
-                    nstr += " __attribute__((" + self.visit(n.attributes) + "))"
+                if isinstance(n, TypeDeclExt):
+                    if n.attributes.exprs:
+                        nstr += " __attribute__((" + self.visit(n.attributes) + "))"
+                elif getattr(n, "attributes", None):
+                    nstr += " " + self._generate_attributes(n.attributes)
 
                 if nstr:
                     s += " " + nstr

@@ -56,7 +56,7 @@ In this example, we will use the following directories:
 ## Download the source code
 
 ```sh
-git clone --depth 1 --branch v0.0.1 https://github.com/smbape/lua-allegro5.git /d/luarocks-binaries-custom/lua-allegro5 && \
+git clone --depth 1 --branch v5.2.11-2 https://github.com/smbape/lua-allegro5.git /d/luarocks-binaries-custom/lua-allegro5 && \
 cd /d/luarocks-binaries-custom/lua-allegro5 && \
 npm ci
 ```

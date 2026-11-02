@@ -29,7 +29,7 @@ index fbcbee1..8bd50bc 100644
  
  // wrap Lua 5.4 calls under Lua 5.1 API when it is simpler that way
 -#if LUA_VERSION_NUM == 504
-+#if LUA_VERSION_NUM >= 505
++#if LUA_VERSION_NUM >= 504
  
  #ifndef lua501_equal // already defined when compatibility is active in luaconf.h
  #define lua501_equal( L, a, b) lua_compare( L, a, b, LUA_OPEQ)
@@ -38,7 +38,7 @@ index fbcbee1..8bd50bc 100644
  #define LUA_ERRGCMM 666 // doesn't exist in Lua 5.4, we don't care about the actual value
  
 -#endif // LUA_VERSION_NUM == 504
-+#endif // LUA_VERSION_NUM >= 505
++#endif // LUA_VERSION_NUM >= 504
  
  #endif // __COMPAT_H__
 diff --git a/src/lanes_private.h b/src/lanes_private.h

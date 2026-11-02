@@ -257,7 +257,7 @@ def to_decl_ext(d):
         raise TypeError("unexpected decl type: %s" % type(d).__name__)
 
 
-class FuncDeclExt(c_ast.Node):
+class FuncDeclExt(c_ast.FuncDecl):
     def __init__(self, args, type, attributes, asm, coord=None):
         self.args = args
         self.type = type
@@ -316,6 +316,31 @@ class CParserBase(pycparser.c_parser.CParser):
             self._scope_stack[0].update(self._pending_initial_type_symbols)
             del self._pending_initial_type_symbols
         return super()._parse_translation_unit_or_empty()
+
+    def _add_declaration_specifier(
+        self,
+        declspec: Optional["_DeclSpec"],
+        newspec: str | c_ast.Node,
+        kind: "_DeclSpecKind",
+    ) -> "_DeclSpec":
+        """Append a specifier in source order; see _DeclSpec for the layout."""
+        if declspec is None:
+            spec: _DeclSpec = {
+                "qual": [],
+                "storage": [],
+                "type": [],
+                "function": [],
+                "alignment": [],
+                "type_attributes": [],
+            }
+        else:
+            spec = declspec
+
+        if kind == "function" and isinstance(newspec, AttributeSpecifier):
+            spec[kind].append(newspec)
+            return spec
+
+        return pycparser.c_parser.CParser._add_declaration_specifier(self, declspec, newspec, kind)
 
     def _parse_attribute_list(self):
         exprs = [self._parse_attribute()]
@@ -528,8 +553,7 @@ class _AsmAndAttributesMixin:
                 decl_ext = to_decl_ext(innermost_decl)
                 if asm_label:
                     decl_ext.asm = asm_label
-                if attrs.exprs:
-                    decl_ext.attributes = attrs
+                decl_ext.attributes = attrs
 
                 if innermost_decl is direct:
                     direct = decl_ext
@@ -572,14 +596,13 @@ class _AsmAndAttributesMixin:
             coord=base_decl.coord,
         )
 
-        if self._peek_type() == "LBRACE":
-            if func.args is not None:
-                for param in func.args.params:
-                    if isinstance(param, c_ast.EllipsisParam):
-                        break
-                    name = getattr(param, "name", None)
-                    if name:
-                        self._add_identifier(name, param.coord)
+        if self._peek_type() == "LBRACE" and func.args is not None:
+            for param in func.args.params:
+                if isinstance(param, c_ast.EllipsisParam):
+                    break
+                name = getattr(param, "name", None)
+                if name:
+                    self._add_identifier(name, param.coord)
 
         return func
 
@@ -652,7 +675,7 @@ class _AsmAndAttributesMixin:
 
         if leading_attrs.exprs:
             spec = self._add_declaration_specifier(
-                spec, AttributeSpecifier(leading_attrs), "function", append=True)
+                spec, AttributeSpecifier(leading_attrs), "function")
 
         assert "typedef" not in spec.get("storage", [])
 
@@ -756,7 +779,7 @@ class GnuCParser(_AsmAndAttributesMixin, CParserBase):
                 if first_coord is None:
                     first_coord = self._tok_coord(tok)
                 spec = self._add_declaration_specifier(
-                    spec, self._parse_alignment_specifier(), "alignment", append=True
+                    spec, self._parse_alignment_specifier(), "alignment"
                 )
                 continue
 
@@ -764,7 +787,7 @@ class GnuCParser(_AsmAndAttributesMixin, CParserBase):
                 if first_coord is None:
                     first_coord = self._tok_coord(tok)
                 spec = self._add_declaration_specifier(
-                    spec, self._parse_atomic_specifier(), "type", append=True
+                    spec, self._parse_atomic_specifier(), "type"
                 )
                 saw_type = True
                 continue
@@ -773,7 +796,7 @@ class GnuCParser(_AsmAndAttributesMixin, CParserBase):
                 if first_coord is None:
                     first_coord = self._tok_coord(tok)
                 spec = self._add_declaration_specifier(
-                    spec, self._advance().value, "qual", append=True
+                    spec, self._advance().value, "qual"
                 )
                 continue
 
@@ -781,14 +804,14 @@ class GnuCParser(_AsmAndAttributesMixin, CParserBase):
                 if first_coord is None:
                     first_coord = self._tok_coord(tok)
                 spec = self._add_declaration_specifier(
-                    spec, self._advance().value, "qual", append=True)
+                    spec, self._advance().value, "qual")
                 continue
 
             if tok.type in _STORAGE_CLASS:
                 if first_coord is None:
                     first_coord = self._tok_coord(tok)
                 spec = self._add_declaration_specifier(
-                    spec, self._advance().value, "storage", append=True
+                    spec, self._advance().value, "storage"
                 )
                 continue
 
@@ -796,7 +819,7 @@ class GnuCParser(_AsmAndAttributesMixin, CParserBase):
                 if first_coord is None:
                     first_coord = self._tok_coord(tok)
                 spec = self._add_declaration_specifier(
-                    spec, self._advance().value, "function", append=True
+                    spec, self._advance().value, "function"
                 )
                 continue
 
@@ -804,7 +827,7 @@ class GnuCParser(_AsmAndAttributesMixin, CParserBase):
                 if first_coord is None:
                     first_coord = self._tok_coord(tok)
                 spec = self._add_declaration_specifier(
-                    spec, self._advance().value, "function", append=True)
+                    spec, self._advance().value, "function")
                 continue
 
             if tok.type in _TYPE_SPEC_SIMPLE:
@@ -815,7 +838,6 @@ class GnuCParser(_AsmAndAttributesMixin, CParserBase):
                     spec,
                     c_ast.IdentifierType([tok.value], coord=self._tok_coord(tok)),
                     "type",
-                    append=True,
                 )
                 saw_type = True
                 continue
@@ -830,7 +852,6 @@ class GnuCParser(_AsmAndAttributesMixin, CParserBase):
                     spec,
                     c_ast.IdentifierType([tok.value], coord=self._tok_coord(tok)),
                     "type",
-                    append=True,
                 )
                 saw_type = True
                 continue
@@ -839,7 +860,7 @@ class GnuCParser(_AsmAndAttributesMixin, CParserBase):
                 if first_coord is None:
                     first_coord = self._tok_coord(tok)
                 spec = self._add_declaration_specifier(
-                    spec, self._parse_struct_or_union_specifier(), "type", append=True
+                    spec, self._parse_struct_or_union_specifier(), "type"
                 )
                 saw_type = True
                 continue
@@ -848,7 +869,7 @@ class GnuCParser(_AsmAndAttributesMixin, CParserBase):
                 if first_coord is None:
                     first_coord = self._tok_coord(tok)
                 spec = self._add_declaration_specifier(
-                    spec, self._parse_enum_specifier(), "type", append=True
+                    spec, self._parse_enum_specifier(), "type"
                 )
                 saw_type = True
                 continue
@@ -858,7 +879,7 @@ class GnuCParser(_AsmAndAttributesMixin, CParserBase):
                     first_coord = self._tok_coord(tok)
                 typeof_tok = self._advance()
                 spec = self._add_declaration_specifier(
-                    spec, self._parse_typeof_specifier(typeof_tok), "type", append=True
+                    spec, self._parse_typeof_specifier(typeof_tok), "type"
                 )
                 saw_type = True
                 continue
@@ -867,7 +888,7 @@ class GnuCParser(_AsmAndAttributesMixin, CParserBase):
                 if first_coord is None:
                     first_coord = self._tok_coord(tok)
                 spec = self._add_declaration_specifier(
-                    spec, AttributeSpecifier(self._parse_attribute_decl()), "function", append=True
+                    spec, AttributeSpecifier(self._parse_attribute_decl()), "function"
                 )
                 continue
 
@@ -899,7 +920,7 @@ class GnuCParser(_AsmAndAttributesMixin, CParserBase):
                 if first_coord is None:
                     first_coord = self._tok_coord(tok)
                 spec = self._add_declaration_specifier(
-                    spec, self._parse_alignment_specifier(), "alignment", append=True
+                    spec, self._parse_alignment_specifier(), "alignment"
                 )
                 saw_alignment = True
                 continue
@@ -908,7 +929,7 @@ class GnuCParser(_AsmAndAttributesMixin, CParserBase):
                 if first_coord is None:
                     first_coord = self._tok_coord(tok)
                 spec = self._add_declaration_specifier(
-                    spec, self._parse_atomic_specifier(), "type", append=True
+                    spec, self._parse_atomic_specifier(), "type"
                 )
                 saw_type = True
                 continue
@@ -917,7 +938,7 @@ class GnuCParser(_AsmAndAttributesMixin, CParserBase):
                 if first_coord is None:
                     first_coord = self._tok_coord(tok)
                 spec = self._add_declaration_specifier(
-                    spec, self._advance().value, "qual", append=True
+                    spec, self._advance().value, "qual"
                 )
                 continue
 
@@ -925,7 +946,7 @@ class GnuCParser(_AsmAndAttributesMixin, CParserBase):
                 if first_coord is None:
                     first_coord = self._tok_coord(tok)
                 spec = self._add_declaration_specifier(
-                    spec, self._advance().value, "qual", append=True
+                    spec, self._advance().value, "qual"
                 )
                 continue
 
@@ -933,7 +954,7 @@ class GnuCParser(_AsmAndAttributesMixin, CParserBase):
                 if first_coord is None:
                     first_coord = self._tok_coord(tok)
                 spec = self._add_declaration_specifier(
-                    spec, self._advance().value, "function", append=True
+                    spec, self._advance().value, "function"
                 )
                 continue
 
@@ -945,7 +966,6 @@ class GnuCParser(_AsmAndAttributesMixin, CParserBase):
                     spec,
                     c_ast.IdentifierType([tok.value], coord=self._tok_coord(tok)),
                     "type",
-                    append=True,
                 )
                 saw_type = True
                 continue
@@ -960,7 +980,6 @@ class GnuCParser(_AsmAndAttributesMixin, CParserBase):
                     spec,
                     c_ast.IdentifierType([tok.value], coord=self._tok_coord(tok)),
                     "type",
-                    append=True,
                 )
                 saw_type = True
                 continue
@@ -969,7 +988,7 @@ class GnuCParser(_AsmAndAttributesMixin, CParserBase):
                 if first_coord is None:
                     first_coord = self._tok_coord(tok)
                 spec = self._add_declaration_specifier(
-                    spec, self._parse_struct_or_union_specifier(), "type", append=True
+                    spec, self._parse_struct_or_union_specifier(), "type"
                 )
                 saw_type = True
                 continue
@@ -978,7 +997,7 @@ class GnuCParser(_AsmAndAttributesMixin, CParserBase):
                 if first_coord is None:
                     first_coord = self._tok_coord(tok)
                 spec = self._add_declaration_specifier(
-                    spec, self._parse_enum_specifier(), "type", append=True
+                    spec, self._parse_enum_specifier(), "type"
                 )
                 saw_type = True
                 continue
@@ -988,7 +1007,7 @@ class GnuCParser(_AsmAndAttributesMixin, CParserBase):
                     first_coord = self._tok_coord(tok)
                 typeof_tok = self._advance()
                 spec = self._add_declaration_specifier(
-                    spec, self._parse_typeof_specifier(typeof_tok), "type", append=True
+                    spec, self._parse_typeof_specifier(typeof_tok), "type"
                 )
                 saw_type = True
                 continue
@@ -1131,9 +1150,10 @@ class GnuCParser(_AsmAndAttributesMixin, CParserBase):
             expr = self._parse_constant_expression()
             if self._accept("ELLIPSIS"):
                 last = self._parse_constant_expression()
+                expr = RangeExpression(expr, last, coord=self._tok_coord(lbrack_tok))
                 self._expect("RBRACKET")
-                return RangeExpression(expr, last, coord=self._tok_coord(lbrack_tok))
-            self._expect("RBRACKET")
+            if hasattr(c_ast, "ArrayDesignator"):
+                return c_ast.ArrayDesignator(expr, self._tok_coord(lbrack_tok))
             return expr
         if self._accept("PERIOD"):
             return self._parse_identifier_or_typeid()
@@ -1237,7 +1257,7 @@ class OpenCLCParser(_AsmAndAttributesMixin, CParserBase):
                 if first_coord is None:
                     first_coord = self._tok_coord(tok)
                 spec = self._add_declaration_specifier(
-                    spec, self._parse_alignment_specifier(), "alignment", append=True
+                    spec, self._parse_alignment_specifier(), "alignment"
                 )
                 continue
 
@@ -1245,7 +1265,7 @@ class OpenCLCParser(_AsmAndAttributesMixin, CParserBase):
                 if first_coord is None:
                     first_coord = self._tok_coord(tok)
                 spec = self._add_declaration_specifier(
-                    spec, self._parse_atomic_specifier(), "type", append=True
+                    spec, self._parse_atomic_specifier(), "type"
                 )
                 saw_type = True
                 continue
@@ -1254,7 +1274,7 @@ class OpenCLCParser(_AsmAndAttributesMixin, CParserBase):
                 if first_coord is None:
                     first_coord = self._tok_coord(tok)
                 spec = self._add_declaration_specifier(
-                    spec, self._advance().value, "qual", append=True
+                    spec, self._advance().value, "qual"
                 )
                 continue
 
@@ -1262,7 +1282,7 @@ class OpenCLCParser(_AsmAndAttributesMixin, CParserBase):
                 if first_coord is None:
                     first_coord = self._tok_coord(tok)
                 spec = self._add_declaration_specifier(
-                    spec, self._advance().value, "qual", append=True
+                    spec, self._advance().value, "qual"
                 )
                 continue
 
@@ -1270,7 +1290,7 @@ class OpenCLCParser(_AsmAndAttributesMixin, CParserBase):
                 if first_coord is None:
                     first_coord = self._tok_coord(tok)
                 spec = self._add_declaration_specifier(
-                    spec, self._advance().value, "storage", append=True
+                    spec, self._advance().value, "storage"
                 )
                 continue
 
@@ -1278,7 +1298,7 @@ class OpenCLCParser(_AsmAndAttributesMixin, CParserBase):
                 if first_coord is None:
                     first_coord = self._tok_coord(tok)
                 spec = self._add_declaration_specifier(
-                    spec, self._advance().value, "function", append=True
+                    spec, self._advance().value, "function"
                 )
                 continue
 
@@ -1286,7 +1306,7 @@ class OpenCLCParser(_AsmAndAttributesMixin, CParserBase):
                 if first_coord is None:
                     first_coord = self._tok_coord(tok)
                 spec = self._add_declaration_specifier(
-                    spec, self._advance().value, "function", append=True
+                    spec, self._advance().value, "function"
                 )
                 continue
 
@@ -1298,7 +1318,6 @@ class OpenCLCParser(_AsmAndAttributesMixin, CParserBase):
                     spec,
                     c_ast.IdentifierType([tok.value], coord=self._tok_coord(tok)),
                     "type",
-                    append=True,
                 )
                 saw_type = True
                 continue
@@ -1313,7 +1332,6 @@ class OpenCLCParser(_AsmAndAttributesMixin, CParserBase):
                     spec,
                     c_ast.IdentifierType([tok.value], coord=self._tok_coord(tok)),
                     "type",
-                    append=True,
                 )
                 saw_type = True
                 continue
@@ -1322,7 +1340,7 @@ class OpenCLCParser(_AsmAndAttributesMixin, CParserBase):
                 if first_coord is None:
                     first_coord = self._tok_coord(tok)
                 spec = self._add_declaration_specifier(
-                    spec, self._parse_struct_or_union_specifier(), "type", append=True
+                    spec, self._parse_struct_or_union_specifier(), "type"
                 )
                 saw_type = True
                 continue
@@ -1331,7 +1349,7 @@ class OpenCLCParser(_AsmAndAttributesMixin, CParserBase):
                 if first_coord is None:
                     first_coord = self._tok_coord(tok)
                 spec = self._add_declaration_specifier(
-                    spec, self._parse_enum_specifier(), "type", append=True
+                    spec, self._parse_enum_specifier(), "type"
                 )
                 saw_type = True
                 continue
@@ -1340,7 +1358,7 @@ class OpenCLCParser(_AsmAndAttributesMixin, CParserBase):
                 if first_coord is None:
                     first_coord = self._tok_coord(tok)
                 spec = self._add_declaration_specifier(
-                    spec, AttributeSpecifier(self._parse_attribute_decl()), "function", append=True
+                    spec, AttributeSpecifier(self._parse_attribute_decl()), "function"
                 )
                 continue
 
@@ -1373,7 +1391,7 @@ class OpenCLCParser(_AsmAndAttributesMixin, CParserBase):
                 if first_coord is None:
                     first_coord = self._tok_coord(tok)
                 spec = self._add_declaration_specifier(
-                    spec, self._parse_alignment_specifier(), "alignment", append=True
+                    spec, self._parse_alignment_specifier(), "alignment"
                 )
                 saw_alignment = True
                 continue
@@ -1382,7 +1400,7 @@ class OpenCLCParser(_AsmAndAttributesMixin, CParserBase):
                 if first_coord is None:
                     first_coord = self._tok_coord(tok)
                 spec = self._add_declaration_specifier(
-                    spec, self._parse_atomic_specifier(), "type", append=True
+                    spec, self._parse_atomic_specifier(), "type"
                 )
                 saw_type = True
                 continue
@@ -1391,7 +1409,7 @@ class OpenCLCParser(_AsmAndAttributesMixin, CParserBase):
                 if first_coord is None:
                     first_coord = self._tok_coord(tok)
                 spec = self._add_declaration_specifier(
-                    spec, self._advance().value, "qual", append=True
+                    spec, self._advance().value, "qual"
                 )
                 continue
 
@@ -1399,7 +1417,7 @@ class OpenCLCParser(_AsmAndAttributesMixin, CParserBase):
                 if first_coord is None:
                     first_coord = self._tok_coord(tok)
                 spec = self._add_declaration_specifier(
-                    spec, self._advance().value, "qual", append=True
+                    spec, self._advance().value, "qual"
                 )
                 continue
 
@@ -1411,7 +1429,6 @@ class OpenCLCParser(_AsmAndAttributesMixin, CParserBase):
                     spec,
                     c_ast.IdentifierType([tok.value], coord=self._tok_coord(tok)),
                     "type",
-                    append=True,
                 )
                 saw_type = True
                 continue
@@ -1426,7 +1443,6 @@ class OpenCLCParser(_AsmAndAttributesMixin, CParserBase):
                     spec,
                     c_ast.IdentifierType([tok.value], coord=self._tok_coord(tok)),
                     "type",
-                    append=True,
                 )
                 saw_type = True
                 continue
@@ -1435,7 +1451,7 @@ class OpenCLCParser(_AsmAndAttributesMixin, CParserBase):
                 if first_coord is None:
                     first_coord = self._tok_coord(tok)
                 spec = self._add_declaration_specifier(
-                    spec, self._parse_struct_or_union_specifier(), "type", append=True
+                    spec, self._parse_struct_or_union_specifier(), "type"
                 )
                 saw_type = True
                 continue
@@ -1444,7 +1460,7 @@ class OpenCLCParser(_AsmAndAttributesMixin, CParserBase):
                 if first_coord is None:
                     first_coord = self._tok_coord(tok)
                 spec = self._add_declaration_specifier(
-                    spec, self._parse_enum_specifier(), "type", append=True
+                    spec, self._parse_enum_specifier(), "type"
                 )
                 saw_type = True
                 continue

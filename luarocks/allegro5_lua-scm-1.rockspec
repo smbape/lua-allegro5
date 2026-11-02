@@ -10,9 +10,7 @@ description = {
       allegro5 bindings for luajit and lua 5.1/5.2/5.3/5.4/5.5.
 
       Linux/Windows users:
-      I recommend you to try to install the prebuilt binary.
-
-      If you are not using luajit
+      I recommend you to try to install the prebuilt binary with
       luarocks install --server=https://github.com/smbape/luarocks-binaries/releases/download/v0.0.1 allegro5_lua
 
       Or to specify the target lua version with one of the following commands
@@ -28,7 +26,6 @@ description = {
         - Ubuntu 22.04
         - Ubuntu 24.04
         - Ubuntu 26.04
-        - Debian 11
         - Debian 12
         - Debian 13
         - Fedora 43
@@ -39,9 +36,9 @@ description = {
         - Almalinux 10
 
       If the prebuilt binary does not work or you want a custom build, then I recommend you to host your own binary rocks by following the instructions at
-      https://github.com/smbape/lua-allegro5/tree/v0.0.1#hosting-you-own-binary-rocks
+      https://github.com/smbape/lua-allegro5/tree/v5.2.11-2#hosting-you-own-binary-rocks
 
-      Otherwise, follow the instructions at https://github.com/smbape/lua-allegro5/tree/v0.0.1#prerequisites-to-source-rock-install
+      Otherwise, follow the instructions at https://github.com/smbape/lua-allegro5/tree/v5.2.11-2#prerequisites-to-source-rock-install
       before attempting to install the source rock with
 
       luarocks install --server=https://github.com/smbape/luarocks-binaries/releases/download/v0.0.1 allegro5_lua 5.2.11.3

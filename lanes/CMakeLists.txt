@@ -34,7 +34,9 @@ file(GLOB_RECURSE SRC_FILES
 add_library(${target_name} SHARED ${SRC_FILES})
 set_target_properties(${target_name} PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
 
-target_link_libraries(${target_name} PRIVATE ${LUA_LIBRARIES})
+if (WIN32)
+    target_link_libraries(${target_name} PRIVATE ${LUA_LIBRARIES})
+endif()
 target_include_directories(${target_name} PRIVATE ${LUA_INCLUDE_DIR})
 
 set(THREADS_PREFER_PTHREAD_FLAG TRUE)

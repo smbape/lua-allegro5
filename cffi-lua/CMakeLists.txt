@@ -30,7 +30,9 @@ set_target_properties(${target_name} PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
 target_compile_definitions(${target_name} PUBLIC "FFI_${CMAKE_CXX_BYTE_ORDER}")
 target_include_directories(${target_name} PUBLIC "${cffi_lua_SOURCE_DIR}/src")
 
-target_link_libraries(${target_name} PRIVATE ${LUA_LIBRARIES})
+if (WIN32)
+    target_link_libraries(${target_name} PRIVATE ${LUA_LIBRARIES})
+endif()
 target_include_directories(${target_name} PRIVATE ${LUA_INCLUDE_DIR})
 
 if (DEFINED Libffi_LIBS)

@@ -44,7 +44,7 @@ local function main(argv)
     local argc = #argv
 
     local mixer
-    local loop = false
+    local playmode = allegro5.ALLEGRO_PLAYMODE_ONCE
     local arg_start = 1
 
     if not allegro5.al_init() then
@@ -54,7 +54,7 @@ local function main(argv)
     open_log()
 
     if argc > 0 and argv[1] == "--loop" then
-        loop = true
+        playmode = allegro5.ALLEGRO_PLAYMODE_LOOP
         arg_start = 2
     end
 
@@ -63,6 +63,7 @@ local function main(argv)
         log_printf("Usage: %s [--loop] {audio_files}\n", argv[0])
         argv = default_files
         argc = #argv
+        arg_start = 1
     end
 
     allegro5.al_init_acodec_addon()
@@ -110,21 +111,10 @@ local function main(argv)
             end
         end
         if not stream then
-            log_printf("Could not create an ALLEGRO_AUDIO_STREAM from '%s'!\n",
-                filename)
+            log_printf("Could not create an ALLEGRO_AUDIO_STREAM from '%s'!\n", filename)
         else
             log_printf("Stream created from '%s'.\n", filename)
-            if loop then
-                allegro5.al_set_audio_stream_playmode(stream,
-                    (function()
-                        if loop then
-                            return allegro5.ALLEGRO_PLAYMODE_LOOP
-                        else
-                            return allegro5
-                                .ALLEGRO_PLAYMODE_ONCE
-                        end
-                    end)())
-            end
+            allegro5.al_set_audio_stream_playmode(stream, playmode)
 
             allegro5.al_register_event_source(queue, allegro5.al_get_audio_stream_event_source(stream))
 
