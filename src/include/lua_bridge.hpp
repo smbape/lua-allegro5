@@ -186,36 +186,7 @@ namespace LUA_MODULE_NAME {
 	void FixedSizeArrayBase<T, Dims...>::register_class(lua_State* L) {
 		thread_local auto registered = [L]() -> bool {
 			using _ArrayT = FixedSizeArray<T, Dims...>;
-
-			bool registered;
-			{
-				std::unique_lock lock(usertype_info<_ArrayT>::mutex);
-				const auto index = get_luaopen_index(L);
-				const auto size = usertype_info<_ArrayT>::metatable_pointers.size();
-				registered = index < size && usertype_info<_ArrayT>::metatable_refs.at(index) != LUA_REFNIL;
-			}
-
-			if (!registered) {
-				lua_newtable(L);
-				lua_register_class<_ArrayT>(L, internal::GetTypeName<_ArrayT>());
-				lua_register_defaults<_ArrayT>(L);
-
-				{
-					lua_pushstring(L, internal::GetTypeName<_ArrayT>());
-					lua_rawget(L, -2); // cls = module[name]
-
-					// For ffi purpose
-					lua_pushliteral(L, "__sizeof");
-					lua_push(L, sizeof(typename _ArrayT::type));
-					lua_rawset(L, -3);
-
-					lua_pop(L, 1);
-				}
-
-				lua_pop(L, 1);
-			}
-
-			return true;
+			return runtime_register_class<_ArrayT, sizeof(typename _ArrayT::type)>(L);
 		}();
 	}
 
@@ -364,12 +335,6 @@ namespace LUA_MODULE_NAME {
 	std::mutex usertype_info<FixedSizeArray<T, Dims...>>::mutex;
 
 	template<typename T, size_t ...Dims>
-	std::vector<const void*> usertype_info<FixedSizeArray<T, Dims...>>::metatable_pointers;
-
-	template<typename T, size_t ...Dims>
-	std::vector<int> usertype_info<FixedSizeArray<T, Dims...>>::metatable_refs;
-
-	template<typename T, size_t ...Dims>
 	const struct luaL_Reg usertype_info<FixedSizeArray<T, Dims...>>::methods[] = {
 		{"__len", FixedSizeArray<T, Dims...>::__len},
 		{"__index", FixedSizeArray<T, Dims...>::__index},
@@ -394,9 +359,7 @@ namespace LUA_MODULE_NAME {
 		}
 
 		if (lua_istable(L, index)) {
-			if (index < 0) {
-				index += lua_gettop(L) + 1;
-			}
+			index = lua_absindex(L, index);
 
 			auto size = lua_rawlen(L, index);
 			is_valid = size == _ArrayT::size;
@@ -879,7 +842,7 @@ namespace LUA_MODULE_NAME {
 			// create an save invoker in the state
 			lua_pushlstring(L, fn_key, fn_key_len);
 
-			invoker_ptr = static_cast<std::shared_ptr<Invoker>*>(lua_newuserdata(L, sizeof(std::shared_ptr<Invoker>)));
+			invoker_ptr = static_cast<std::shared_ptr<Invoker>*>(lua_compat_newuserdata(L, sizeof(std::shared_ptr<Invoker>)));
 			new(invoker_ptr) std::shared_ptr<Invoker>(std::make_shared<Invoker>(L, index, is_valid));
 
 			if (!is_valid) {

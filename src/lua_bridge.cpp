@@ -308,7 +308,7 @@ namespace {
 			{"unregister_callback", unregister_callback},
 			{NULL, NULL} // Sentinel
 		};
-		lua_pushfuncs(L, lua_instance_misc_methods);
+		lua_module_setfuncs(L, lua_instance_misc_methods);
 	}
 
 	// ================================
@@ -582,59 +582,10 @@ namespace {
 			{"unregister_defered_callback", unregister_defered_callback},
 			{NULL, NULL} // Sentinel
 		};
-		lua_pushfuncs(L, lua_instance_misc_methods);
+		lua_module_setfuncs(L, lua_instance_misc_methods);
 	}
 
 	std::unordered_map<std::string, FFIArgExtractor> extractors;
-
-	int handle_exit(lua_State* L = nullptr) {
-		if (al_is_system_installed()) {
-			al_uninstall_system();
-		}
-		return 0;
-	}
-
-	struct OnExit {
-		~OnExit() {
-			handle_exit();
-		}
-	};
-
-	std::mutex onexit_mutex;
-
-	lua_CFunction old_panicf;
-
-	int handle_panic(lua_State* L) {
-		handle_exit(L);
-		if (old_panicf) {
-			return old_panicf(L);
-		}
-		return 0;
-	}
-
-	void register_onexit(lua_State* L) {
-		static std::unique_ptr<OnExit> onexit;
-
-		std::unique_lock onexit_lock(onexit_mutex);
-
-		if (onexit) {
-			return;
-		}
-
-		auto userdata_ptr = lua_newuserdata(L, sizeof(void*));
-
-		lua_newtable(L);
-		lua_pushstring(L, "__gc");
-		lua_pushcfunction(L, handle_exit);
-		lua_rawset(L, -3);
-
-		lua_setmetatable(L, -2);
-		luaL_ref(L, LUA_REGISTRYINDEX); // save last value
-
-		old_panicf = lua_atpanic(L, handle_panic);
-
-		onexit = std::make_unique<OnExit>();
-	}
 }
 
 namespace LUA_MODULE_NAME {
@@ -656,6 +607,5 @@ namespace LUA_MODULE_NAME {
 		register_extractors();
 		register_register_callback(L);
 		register_register_defered_callback(L);
-		register_onexit(L);
 	}
 }

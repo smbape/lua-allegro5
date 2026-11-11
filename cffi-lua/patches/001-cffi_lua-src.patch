@@ -31,16 +31,14 @@ index 6d6b927..cddd139 100644
                      std::size_t(lua_tointeger(L, index))
                  );
                  return;
-@@ -983,6 +987,40 @@ static void *from_lua_cdata(
+@@ -983,6 +987,38 @@ static void *from_lua_cdata(
      return nullptr;
  }
  
 +static inline void* from_lua_self_pointer(lua_State* L, int index, bool &is_valid) {
 +    void* ptr = nullptr;
 +
-+    if (index < 0) {
-+        index += lua_gettop(L) + 1;
-+    }
++    index = lua_absindex(L, index);
 +
 +    is_valid = lua_getmetatable(L, index); // push metatable
 +    if (!is_valid) {

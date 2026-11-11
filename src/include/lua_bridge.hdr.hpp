@@ -155,8 +155,6 @@ namespace LUA_MODULE_NAME {
 	template<typename T, size_t ...Dims>
 	struct usertype_info<FixedSizeArray<T, Dims...>> {
 		static std::mutex mutex;
-		static std::vector<const void*> metatable_pointers;
-		static std::vector<int> metatable_refs;
 		static const struct luaL_Reg methods[];
 		static const struct luaL_Reg meta_methods[];
 		static std::shared_ptr<FixedSizeArray<T, Dims...>> lua_userdata_to(lua_State* L, int index, bool& is_valid);
