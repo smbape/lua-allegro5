@@ -251,6 +251,10 @@ function(allegro5_write_c_protos)
     unset(Allegro5_INCLUDE_DIRECTORIES)
 
     foreach(library_TARGET IN LISTS Allegro5_LIBS)
+        if (NOT TARGET "${library_TARGET}")
+            message(FATAL_ERROR "${library_TARGET} is not a target")
+        endif()
+
         _populate_library_vars(
             TARGET ${library_TARGET}
             OUTPUT_VARIABLE Allegro5
@@ -410,7 +414,6 @@ set(SRC_FILES
     ${project_generated_headers}
     ${project_generated_files}
 
-    ${Allegro5_SOURCE_OBJECTS}
     ${Libffi_SOURCE_OBJECTS}
 )
 
@@ -495,16 +498,11 @@ if (WIN32)
 endif()
 target_include_directories(${target_name} PRIVATE ${LUA_INCLUDE_DIR})
 
-if (DEFINED Allegro5_DEPENDENCIES)
-    add_dependencies(${target_name} ${Allegro5_DEPENDENCIES})
-endif()
-
-if (DEFINED Allegro5_INCLUDE_DIRS)
-    target_include_directories(${target_name} PRIVATE ${Allegro5_INCLUDE_DIRS})
-endif()
-
 if (DEFINED Allegro5_LIBS)
-    target_link_libraries(${target_name} PRIVATE ${Allegro5_LIBS})
+    string(REPLACE ";" "," Allegro5_link_libraries "${Allegro5_LIBS}")
+    target_link_libraries(${target_name} PRIVATE "$<LINK_LIBRARY:WHOLE_ARCHIVE,${Allegro5_link_libraries}>")
+    unset(Allegro5_link_libraries)
+
     get_target_property(cflags ${target_name} COMPILE_FLAGS)
     if (NOT "${cflags}" STREQUAL "cflags-NOTFOUND")
         string(REPLACE " " ";" cflags "${__cmake_cflags}")
@@ -531,6 +529,14 @@ if (DEFINED Allegro5_LIBS)
     string(REPLACE ";" " " cflags "${cflags}")
     set_target_properties(${target_name} PROPERTIES COMPILE_FLAGS "${cflags}")
     unset(cflags)
+endif()
+
+if (DEFINED Allegro5_INCLUDE_DIRS)
+    target_include_directories(${target_name} PRIVATE ${Allegro5_INCLUDE_DIRS})
+endif()
+
+if (DEFINED Allegro5_DEPENDENCIES)
+    add_dependencies(${target_name} ${Allegro5_DEPENDENCIES})
 endif()
 
 if (DEFINED Libffi_LIBS)

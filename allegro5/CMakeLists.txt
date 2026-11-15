@@ -36,25 +36,6 @@ else()
     set(ALLEGRO_CMAKE_INSTALL_INCLUDEDIR "${CMAKE_INSTALL_INCLUDEDIR}" CACHE STRING "Include directory destination")
 endif()
 
-# We want the allegro5 lua module to be used as a replacement of allegro5
-# when another lua module depends on allegro5.
-# 
-# Linux lua expects shared libraries as modules (.so)
-# Windows lua exepects a .dll file, which can be a static or a shared library.
-# 
-# For the allegro5 lua module to be used as a replacement of allegro5,
-# it needs to have all the exported allegro5 functions also exported.
-# 
-# One way to achieve that purpose is to build allegro5 as a static library
-# and then use target_link_libraries(shared_lib PRIVATE "$<LINK_LIBRARY:WHOLE_ARCHIVE,static_lib1;static_lib2>")
-# @see: https://cmake.org/cmake/help/latest/manual/cmake-generator-expressions.7.html#genex:LINK_LIBRARY
-# However, on Windows, set(ALLEGRO_MODULE_TYPE "STATIC") will cause all dependent libraries to be also static.
-# We do not want that because in order for allegro5_lua to be linked against, it must be a shared library.
-# 
-# The choosen solution is to directly embed the allegro5 objects in the allegro5 lua module.
-# That will allow the allegro5 lua module shared library to have all the exported allegro5 functions.
-set(ALLEGRO_MODULE_TYPE "OBJECT")
-
 option(WANT_MONOLITH "Include all addons in the main library" on)
 option(WANT_DOCS "Generate documentation" off)
 option(WANT_DOCS_HTML "Generate HTML documentation" off)
@@ -65,7 +46,18 @@ option(WANT_POPUP_EXAMPLES "Use popups instead of printf for fatal errors" off)
 option(WANT_TESTS "Build test programs" off)
 option(WANT_UNSTABLE "Enable unstable API" off)
 
+if(MSVC)
+  include("${CMAKE_CURRENT_LIST_DIR}/Allegro5CRTLinkage.cmake")
+endif()
+
+# Build as a static library and use WHOLE_ARCHIVE/-Wl,--whole-archive to export all symbols
+option(ENABLE_PIC "Generate position independent code (necessary for shared libraries)" ${BUILD_SHARED_LIBS})
+set(CMAKE_POSITION_INDEPENDENT_CODE ${ENABLE_PIC})
+set(_backup_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS})
+set(SHARED OFF)
 add_subdirectory("${allegro5_SOURCE_DIR}" "${allegro5_BINARY_DIR}")
+set(BUILD_SHARED_LIBS ${_backup_BUILD_SHARED_LIBS})
+unset(_backup_BUILD_SHARED_LIBS)
 
 function(read_allegro5_config)
     file(STRINGS "${allegro5_BINARY_DIR}/include/allegro5/platform/alplatf.h" Allegro5_ALPLATF)
@@ -83,8 +75,6 @@ set(Allegro5_ALL_HEADERS
     "include/allegro5/allegro.h"
 )
 
-set(Allegro5_HEADERS)
-
 # allegro5 Include directories
 set(Allegro5_INCLUDE_DIRS
     "${allegro5_SOURCE_DIR}/include"
@@ -100,11 +90,27 @@ foreach(name IN LISTS Allegro5_ADDONS)
 endforeach()
 
 # allegro5 Libraries
-set(Allegro5_LIBS ${ALLEGRO_MODULES_PUBLIC})
+unset(Allegro5_HEADERS)
+unset(Allegro5_LIBS)
+
+function(remove_cflag cflags item)
+    string(REPLACE " " ";" __cmake_cflags "${__cmake_cflags}")
+    string(REPLACE " " ";" __cmake_cflags "${__cmake_cflags}")
+    list(REMOVE_ITEM __cmake_cflags "-DALLEGRO_STATICLINK")
+    set_target_properties(${the_module} PROPERTIES COMPILE_FLAGS "${__cmake_cflags}")
+endfunction()
 
 # Keep object files already in the sources because they are not propagated
-unset(Allegro5_SOURCE_OBJECTS)
-foreach(the_module IN LISTS Allegro5_LIBS)
+foreach(the_module IN LISTS ALLEGRO_MODULES_PUBLIC)
+    list(APPEND Allegro5_LIBS "${the_module}")
+
+    # Remove -DALLEGRO_STATICLINK from COMPILE_FLAGS to export all the module symbols
+    if (MSVC)
+        target_compile_options(${the_module} PRIVATE /UALLEGRO_STATICLINK)   # /UBUILD_SRC on MSVC
+    else()
+        target_compile_options(${the_module} PRIVATE -UALLEGRO_STATICLINK)   # /UBUILD_SRC on MSVC
+    endif()
+
     if(WANT_UNSTABLE)
         target_compile_definitions(${the_module} PUBLIC ALLEGRO_UNSTABLE)
     endif()
@@ -123,16 +129,11 @@ foreach(the_module IN LISTS Allegro5_LIBS)
         list_intersection(__cmake_headers __cmake_sources Allegro5_ALL_HEADERS)
         list(APPEND Allegro5_HEADERS ${__cmake_headers})
         unset(__cmake_headers)
-
-        list(FILTER __cmake_objects INCLUDE REGEX "(^\\\$<TARGET_OBJECTS:|\\${CMAKE_C_OUTPUT_EXTENSION}$)")
-        list(APPEND Allegro5_SOURCE_OBJECTS "${__cmake_objects}")
-        unset(__cmake_objects)
     endif()
 
     unset(__cmake_sources)
 endforeach()
 list(REMOVE_DUPLICATES Allegro5_HEADERS)
-list(REMOVE_DUPLICATES Allegro5_SOURCE_OBJECTS)
 
 list_cmake_path(ABSOLUTE_PATH Allegro5_HEADERS BASE_DIRECTORY "${allegro5_SOURCE_DIR}" NORMALIZE OUTPUT_VARIABLE)
 
@@ -142,7 +143,6 @@ list_cmake_path(ABSOLUTE_PATH Allegro5_HEADERS BASE_DIRECTORY "${allegro5_SOURCE
 set(Allegro5_CONFIGURATION_SUMMARY "${ALLEGRO_CONFIGURATION_SUMMARY}" PARENT_SCOPE)
 set(Allegro5_HEADERS "${Allegro5_HEADERS}" PARENT_SCOPE)
 set(Allegro5_PUBLIC_HEADERS "${ALLEGRO_PUBLIC_HEADERS}" PARENT_SCOPE)
-set(Allegro5_SOURCE_OBJECTS "${Allegro5_SOURCE_OBJECTS}" PARENT_SCOPE)
 set(Allegro5_INCLUDE_DIRS "${Allegro5_INCLUDE_DIRS}" PARENT_SCOPE)
 set(Allegro5_LIBS "${Allegro5_LIBS}" PARENT_SCOPE)
 set(allegro5_BINARY_DIR "${allegro5_BINARY_DIR}" PARENT_SCOPE)
