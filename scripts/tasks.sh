@@ -1166,6 +1166,7 @@ function build_windows_debug() {
     time \
     PATH="$_PATH" \
     ./build${SCRIPT_SUFFIX} -d "-DLua_VERSION=${version}" --install \
+        -DENABLE_REPAIR=ON \
         -DCMAKE_TOOLCHAIN_FILE="$(cygpath -m "$VCPKG_ROOT")/scripts/buildsystems/vcpkg.cmake" \
         -DWANT_UNSTABLE=ON \
         "$@"

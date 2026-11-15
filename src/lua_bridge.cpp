@@ -586,6 +586,50 @@ namespace {
 	}
 
 	std::unordered_map<std::string, FFIArgExtractor> extractors;
+
+	std::mutex onexit_mutex;
+	int systems = 0;
+
+	int handle_exit(lua_State* L = nullptr) {
+		std::unique_lock onexit_lock(onexit_mutex);
+
+		if (--systems != 0) {
+			return 0;
+		}
+
+		if (al_is_system_installed()) {
+			al_uninstall_system();
+		}
+
+		return 0;
+	}
+
+	lua_CFunction old_panicf;
+
+	int handle_panic(lua_State* L) {
+		handle_exit();
+		if (old_panicf) {
+			return old_panicf(L);
+		}
+		return 0;
+	}
+
+	void register_onexit(lua_State* L) {
+		std::unique_lock onexit_lock(onexit_mutex);
+		systems++;
+
+		auto userdata_ptr = lua_newuserdata(L, sizeof(void*));
+
+		lua_newtable(L);
+		lua_pushstring(L, "__gc");
+		lua_pushcfunction(L, handle_exit);
+		lua_rawset(L, -3);
+
+		lua_setmetatable(L, -2);
+		luaL_ref(L, LUA_REGISTRYINDEX); // keep reference until lua_State is closed
+
+		old_panicf = lua_atpanic(L, handle_panic);
+	}
 }
 
 namespace LUA_MODULE_NAME {
@@ -607,5 +651,6 @@ namespace LUA_MODULE_NAME {
 		register_extractors();
 		register_register_callback(L);
 		register_register_defered_callback(L);
+		register_onexit(L);
 	}
 }
