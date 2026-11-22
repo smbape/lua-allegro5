@@ -234,9 +234,7 @@ namespace LUA_MODULE_NAME {
 		virtual ~CFunctionInvokerBase();
 
 		Function fn;
-		std::shared_ptr<std::mutex> creator_gil_mutex;
-		std::thread::id creator_thread_id;
-		std::shared_ptr<std::unique_lock<std::mutex>> creator_gil;
+		GilPtr gil_;
 		ffi_closure* closure = nullptr;
 		ffi_cif cif;
 		void* bound_function = nullptr;

@@ -2,7 +2,7 @@
 
 Allegro5 bindings for luajit and lua 5.1/5.2/5.3/5.4/5.5.
 
-The aim is to make it colse a as possible to the [Allegro 5](https://github.com/liballeg/allegro5/) c-api.
+The aim is to make it as close as possible to the [Allegro 5](https://github.com/liballeg/allegro5/) c-api.
 
 Therefore the [Allegro5 documentation](https://liballeg.org/a5docs/5.2.11.3/index.html) should be the reference.
 
@@ -58,7 +58,7 @@ Prebuilt binaries are available for [LuaJIT 2.1](https://luajit.org/) and [Lua 5
   - Install [DirectX Software Development Kit](https://www.microsoft.com/en-us/download/details.aspx?id=6812)
   - In your windows search, search and open the `x64 Native Tools Command Prompt for VS`
   - Export vcpkg toolchain variable `set ALLEGRO5_LUA_CMAKE_TOOLCHAIN_FILE=%VCPKG_ROOT%/scripts/buildsystems/vcpkg.cmake`
-  - Tell luarocks to use Ninja as cmake generator `luarocks config --scope project cmake_generator Ninja`
+  - Specify [Ninja](https://ninja-build.org/) as the default CMake generator `set CMAKE_GENERATOR=Ninja`
 
 #### Linux
 
@@ -69,7 +69,7 @@ Prebuilt binaries are available for [LuaJIT 2.1](https://luajit.org/) and [Lua 5
   - Install [vcpkg](https://learn.microsoft.com/en-us/vcpkg/get_started/get-started?pivots=shell-bash)
   - Export vcpkg toolchain variable `export ALLEGRO5_LUA_CMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"`
   - Install needed packages (see below for you corresponding distribution).
-  - Tell luarocks to use [Ninja](https://ninja-build.org/) as cmake generator `luarocks config --scope project cmake_generator Ninja`
+  - Specify [Ninja](https://ninja-build.org/) as the default CMake generator `export CMAKE_GENERATOR=Ninja`
 
 ##### Debian, Ubuntu
 

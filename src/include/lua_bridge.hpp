@@ -184,10 +184,8 @@ namespace LUA_MODULE_NAME {
 
 	template<typename T, size_t ...Dims>
 	void FixedSizeArrayBase<T, Dims...>::register_class(lua_State* L) {
-		thread_local auto registered = [L]() -> bool {
-			using _ArrayT = FixedSizeArray<T, Dims...>;
-			return runtime_register_class<_ArrayT, sizeof(typename _ArrayT::type)>(L);
-		}();
+		using _ArrayT = FixedSizeArray<T, Dims...>;
+		runtime_register_class<_ArrayT, sizeof(typename _ArrayT::type)>(L);
 	}
 
 	template<typename T, size_t ...Dims>
@@ -658,9 +656,7 @@ namespace LUA_MODULE_NAME {
 		}
 
 		this->fn.assign(L, fn);
-		this->creator_gil_mutex = get_gil_mutex(L);
-		this->creator_thread_id = std::this_thread::get_id();
-		this->creator_gil = get_thread_gil(L, creator_gil_mutex);
+		this->gil_ = get_gil_of(L);
 
 		is_valid = false;
 
@@ -802,7 +798,7 @@ namespace LUA_MODULE_NAME {
 	template<typename R, typename... Args>
 	void CFunctionInvokerBase<R, Args...>::function_binding(ffi_cif* cif, void* ret, void** args, void* user_data) {
 		decltype(auto) invoker = *reinterpret_cast<Invoker*>(user_data);
-		GilLock lock(invoker.fn.L, invoker.creator_gil_mutex, invoker.creator_thread_id, invoker.creator_gil);
+		GilGuard guard(invoker.gil_);
 		invoke(ret, args, user_data);
 	}
 

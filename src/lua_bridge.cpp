@@ -123,9 +123,7 @@ namespace {
 		void* bound_function { nullptr };
 	private:
 		Function fn;
-		std::shared_ptr<std::mutex> creator_gil_mutex;
-		std::thread::id creator_thread_id;
-		std::shared_ptr<std::unique_lock<std::mutex>> creator_gil;
+		GilPtr gil_;
 		std::string return_type;
 		FFIArgExtractor* return_extractor;
 		std::vector<FFIArgExtractor*> arg_extractors;
@@ -153,9 +151,7 @@ namespace {
 		arg_extractors(std::move(_arg_extractors))
 	{
 		auto L = fn.L;
-		creator_gil_mutex = get_gil_mutex(L);
-		creator_thread_id = std::this_thread::get_id();
-		creator_gil = get_thread_gil(L, creator_gil_mutex);
+		gil_ = get_gil_of(L);
 
 		/* Allocate closure and bound_function */
 		closure = reinterpret_cast<ffi_closure*>(ffi_closure_alloc(sizeof(ffi_closure), &bound_function));
@@ -198,7 +194,7 @@ namespace {
 
 	void RegisteredFunctionInvoker::invoke(ffi_cif* cif, void* ret, void** args) {
 		auto& L = fn.L;
-		GilLock lock(L, creator_gil_mutex, creator_thread_id, creator_gil);
+		GilGuard guard(gil_);
 
 		lua_push(L, fn);
 
@@ -335,9 +331,7 @@ namespace {
 		void* bound_function { nullptr };
 	private:
 		Function fn;
-		std::shared_ptr<std::mutex> creator_gil_mutex;
-		std::thread::id creator_thread_id;
-		std::shared_ptr<std::unique_lock<std::mutex>> creator_gil;
+		GilPtr gil_;
 		void* ret;
 		FFIArgExtractor* return_extractor;
 		std::vector<FFIArgExtractor*> arg_extractors;
@@ -366,9 +360,7 @@ namespace {
 		arg_extractors(std::move(_arg_extractors))
 	{
 		auto L = fn.L;
-		creator_gil_mutex = get_gil_mutex(L);
-		creator_thread_id = std::this_thread::get_id();
-		creator_gil = get_thread_gil(L, creator_gil_mutex);
+		gil_ = get_gil_of(L);
 
 		/* Allocate closure and bound_function */
 		closure = reinterpret_cast<ffi_closure*>(ffi_closure_alloc(sizeof(ffi_closure), &bound_function));
@@ -443,7 +435,7 @@ namespace {
 			m_lock.unlock();
 
 			auto& L = fn.L;
-			GilLock lock(L, creator_gil_mutex, creator_thread_id, creator_gil);
+			GilGuard guard(gil_);
 
 			m_lock.lock();
 
